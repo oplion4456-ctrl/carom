@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AntiGravity 2D Carrom - Hardwood Championship Board</title>
+    <title>AntiGravity 2D Carrom - Championship Hardwood Arena</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,12 +12,12 @@
         
         <header>
             <h1>AntiGravity Carrom</h1>
-            <p>Hardwood Championship Simulator & Procedural Timber Physics</p>
+            <p>Wood Slide Physics Simulator & Professional AI Opponent</p>
         </header>
 
         <div class="dashboard">
 
-            <!-- Playable Board & Slider Wrapper -->
+            <!-- Playable Board Column -->
             <div class="board-column">
                 <div class="board-wrapper">
                     <canvas id="carromCanvas" width="600" height="600"></canvas>
@@ -27,13 +27,13 @@
                 <div class="slider-panel">
                     <div class="slider-header">
                         <span class="slider-title">Position Striker</span>
-                        <span class="slider-hint">Slide to align, then drag striker on board to shoot</span>
+                        <span class="slider-hint">Drag horizontally to align. Click striker on board, pull back & release to fire.</span>
                     </div>
                     <input type="range" id="strikerSlider" min="0" max="100" value="50" class="premium-slider">
                 </div>
             </div>
 
-            <!-- Dashboard Panel -->
+            <!-- Scoreboard & Controls Panel -->
             <div class="panel">
                 
                 <div class="state-badge-container">
@@ -44,6 +44,15 @@
                 <div class="turn-indicator">
                     <span class="turn-title">Current Turn</span>
                     <span class="turn-player" id="activePlayerDisplay">White Player</span>
+                </div>
+
+                <!-- Opponent Mode Selector -->
+                <div class="mode-selector">
+                    <label class="mode-label">Match Settings</label>
+                    <div class="mode-buttons">
+                        <button class="mode-btn active" id="modeLocalBtn">2-Player</button>
+                        <button class="mode-btn" id="modeAiBtn">Championship AI</button>
+                    </div>
                 </div>
 
                 <div class="scores">
@@ -58,7 +67,7 @@
                     <div class="score-row" id="blackScoreRow">
                         <div class="player-info">
                             <div class="coin-icon black"></div>
-                            <span class="player-name">Black Score</span>
+                            <span class="player-name" id="blackPlayerName">Black Score</span>
                         </div>
                         <span class="score-val" id="blackScoreVal">0</span>
                     </div>
@@ -67,17 +76,53 @@
                 <!-- Queen Cover Indicator -->
                 <div class="queen-status" id="queenStatusBox" style="display: none;">
                     <div class="queen-dot"></div>
-                    <span id="queenStatusText">Queen pocketed! Score next to cover.</span>
+                    <span id="queenStatusText">Queen Sunk! Score a coin to cover.</span>
+                </div>
+
+                <!-- Action Button -->
+                <button class="btn" id="restartBtn">Reset Board</button>
+
+            </div>
+
+            <!-- Physics Monitor HUD Overlay -->
+            <div class="panel monitor-panel">
+                <div class="monitor-header">
+                    <div class="pulse-dot"></div>
+                    <span class="monitor-title">Telemetry & Physics HUD</span>
+                </div>
+                
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Active Bodies</span>
+                        <span class="telemetry-value" id="hudActiveBodies">14</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Total Kinetic Energy</span>
+                        <span class="telemetry-value" id="hudKineticEnergy">0.00 J</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Striker Velocity</span>
+                        <span class="telemetry-value" id="hudStrikerVel">0.0 px/s</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Collision Count</span>
+                        <span class="telemetry-value" id="hudCollisions">0</span>
+                    </div>
+                </div>
+
+                <div class="vector-visualizer">
+                    <span class="vector-title">Dynamic Vector Trajectory Path</span>
+                    <div class="vector-status">
+                        <span class="vector-status-label">Trajectory:</span>
+                        <span class="vector-status-value" id="hudTrajectoryStatus">Ready</span>
+                    </div>
                 </div>
 
                 <div class="guidance">
-                    <strong>How to Play:</strong><br>
-                    1. 🎚️ **Align:** Slide the baseline slider below the board horizontally to position your striker.<br><br>
-                    2. 🏹 **Aim & Shoot:** Click/touch directly on the **striker**, drag backward (like a slingshot), and release to shoot!
+                    <strong>Tactical HUD Tips:</strong><br>
+                    - The **Trajectory Line** maps standard wall rebounds.<br>
+                    - Championship AI maps **direct pocket vectors** and applies exact wood-friction deceleration calculations.
                 </div>
-
-                <button class="btn" id="restartBtn">Reset Board</button>
-
             </div>
 
         </div>
