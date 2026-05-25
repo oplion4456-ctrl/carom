@@ -251,9 +251,21 @@ class CarromGame {
         this.canvas.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', handleUp);
 
-        this.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleDown(e); });
-        this.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e); });
-        window.addEventListener('touchend', (e) => { e.preventDefault(); handleUp(e); });
+        // Use { passive: false } on canvas active touch listeners to prevent browser cancel warnings
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (e.cancelable) e.preventDefault();
+            handleDown(e);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (e.cancelable) e.preventDefault();
+            handleMove(e);
+        }, { passive: false });
+
+        // Never call preventDefault on window-level passive event listeners
+        window.addEventListener('touchend', (e) => {
+            handleUp(e);
+        });
 
         document.getElementById('restartBtn').addEventListener('click', () => {
             this.whiteScore = 0;
