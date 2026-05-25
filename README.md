@@ -1,49 +1,64 @@
 # AntiGravity 2D Carrom Engine
 
-A high-performance, realistic 2D Carrom game architecture for Android written in Kotlin. This project features a custom lightweight 2D physics world specifically designed to mimic polished wood-on-wood sliding dynamics.
+A high-performance, realistic 2D Carrom game engine architecture implemented across both **Android (Kotlin)** and **Web (JavaScript/HTML5)** environments. This repository features a bespoke 2D physics world specifically designed to mimic polished wood-on-wood sliding dynamics, dynamic impulse collisions, and regulation carrom game rules.
 
-## Key Features
+---
 
-1. **AntiGravity Physics Subsystem:**
-   - Vector math (`Vector2D`) optimized for frame ticks.
-   - Rigid Body modeling (`RigidBody2D`) representing masses, restitution, and linear wood damping friction.
-   - Circle-to-circle impulse solver and positional penetration correction.
-   - Circular trigger pockets with automatic pocket overlap "sinking" logic.
-
-2. **Wood Dynamics Tuning:**
-   - Striker designed to be $\approx 2.7\times$ heavier and $1.5\times$ larger than standard coins to allow authentic momentum transfer.
-   - Custom Linear Damping simulating physical wooden powder board slide speeds.
-
-3. **2-Step Touch Input Engine:**
-   - **Positioning:** Constrained horizontal slide limits along the bottom baseline.
-   - **Aiming:** Vector pull (slingshot) drag release to project mechanical velocity impulses.
-
-4. **Carrom Rule Engine:**
-   - Turn state-machine transitions (`Positioning`, `Aiming`, `Simulating`, `Evaluating`).
-   - Sunk striker foul penalties (coin respawn inside center with randomized offsets to avoid overlap).
-   - Queen Cover Rule sequence automation (scoring queen triggers cover check on next shot).
-
-## Project Structure
+## 📁 Repository Structure
 
 ```text
 AntiGravityCarrom/
-├── src/main/kotlin/com/antigravity/carrom/
+├── src/main/kotlin/com/antigravity/carrom/  # 🤖 Android Kotlin Subsystem
 │   ├── physics/
-│   │   ├── Vector2D.kt          # Math vector library
-│   │   ├── RigidBody2D.kt       # Rigid body representations
-│   │   └── PhysicsWorld.kt      # Collision, constraint, and pocket solvers
+│   │   ├── Vector2D.kt                      # Optimized vector mathematics
+│   │   ├── RigidBody2D.kt                   # Circular rigid body properties
+│   │   └── PhysicsWorld.kt                  # Collision, boundary, and pocket solvers
 │   ├── entities/
-│   │   └── CarromEntities.kt    # Regulation configurations for Striker/Coins
+│   │   └── CarromEntities.kt                # Regulation Striker and Coins specs
 │   ├── view/
-│   │   └── CarromSurfaceView.kt # Multi-threaded game loop rendering surface
-│   └── CarromGameController.kt  # State transitions, controls, and scoring logic
+│   │   └── CarromSurfaceView.kt             # Multi-threaded SurfaceView canvas thread
+│   └── CarromGameController.kt              # Main engine logic and turn arbitration
+│
+├── web/                                     # 🌐 Web Playable Simulator
+│   ├── index.html                           # Visual dashboard layout
+│   ├── styles.css                           # Glassmorphic dark premium UI styles
+│   ├── physics.js                           # Web port of the physics solver
+│   ├── audio.js                             # Web Audio API real-time sound synthesizer
+│   └── game.js                              # Canvas loop renderer & event controllers
+│
 ├── .gitignore
 └── README.md
 ```
 
-## Running & Integration
+---
 
-This code is written to be directly imported into an Android Studio project. To display the board:
-1. Copy the source directories into your Android Project (`app/src/main/java/` or `app/src/main/kotlin/`).
-2. Add `<com.antigravity.carrom.view.CarromSurfaceView>` into your Activity's XML layout file.
-3. Launch on an Android Emulator or physical device.
+## 🚀 Platform Overviews
+
+### 1. Web Interactive Simulator (`/web`)
+Open **`web/index.html`** in any modern web browser or host locally (e.g. `python -m http.server 8000`) to play the game immediately!
+* **Aesthetics:** Rendered using dynamic CSS glassmorphism and real-time custom canvas gradient shadows mimicking ivory white coins, charcoal black pieces, a ruby-red Queen, and a neon-green dynamic Striker.
+* **Aiming Visuals:** Includes a 2-stage interaction flow. Slide along the baseline to position, then drag back like a slingshot to reveal a red dotted aiming trajectory projection line showing vector direction and force.
+* **Dynamic Audio Synthesizer:** Incorporates synthesized, real-time sound effects using the browser's Web Audio API oscillators—generating high-pitched triangle clacks for coin hits, low sine-thuds for wall bounces, and pitch-sliding noise filters for pocket drops.
+
+### 2. Android Kotlin SDK (`/src`)
+A clean, modular architectural reference for integration into premium native Android applications.
+* **SurfaceView Canvas Loop:** Decoupled from the primary Android Main UI thread, running a dedicated simulation update loop locked at 60 FPS to prevent stuttering.
+* **Physics Precision:** Solves circle-to-circle elastic collision impulses using semi-implicit Euler integration, positional penetration correction, wood linear damping ($1.1f$), and pocket boundaries.
+
+---
+
+## 🛠️ Wood Dynamics Tuning
+
+To mimic polished wooden boards, the physics parameters have been calibrated to the following specs:
+* **Mass Relationship:** The striker is $\approx 2.7\times$ heavier ($15.0f$) and $1.5\times$ larger ($22f$) than coins ($5.5f$ mass, $15f$ radius) to ensure high-momentum energy transfers.
+* **Linear wood friction:** Applied as a continuous kinetic damping modifier:
+  $$\vec{v}_{\text{new}} = \vec{v}_{\text{old}} \times (1 - 1.1 \cdot dt)$$
+* **Pocket overlap threshold:** Sinks a coin only once the center enters past the rim ($r_{\text{overlap}} < R_{\text{pocket}} \times 0.8$) to simulate realistic gravity drop.
+
+---
+
+## 📜 Standard Carrom Rules Built-In
+Both platforms automate standard professional rules:
+1. **Foul Striker Sunk:** Sinking the striker incurs a -1 penalty point, and one scored coin is returned to the center circle.
+2. **The Queen Cover Rule:** Pocketing the Queen shifts state to "Waiting for Cover". Scoring on the very next shot covers it (+3 points, keep turn); failing to score returns the Queen to the center.
+3. **Turn cycling:** Keeps turn on scored shots, cycles to other player on misses.

@@ -1,0 +1,294 @@
+/* Premium Styling for AntiGravity Carrom */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700;900&display=swap');
+
+:root {
+    --bg-dark: #0f0b0a;
+    --card-bg: rgba(28, 20, 18, 0.7);
+    --border-glow: rgba(255, 110, 64, 0.2);
+    --gold: #FFD54F;
+    --neon-green: #00E676;
+    --crimson: #FF3D00;
+    --white-coin: #FFFFFF;
+    --black-coin: #3E2723;
+    --accent: #FF7043;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    background: radial-gradient(circle at center, #1f1412 0%, var(--bg-dark) 100%);
+    color: #F5F5F5;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    padding: 20px;
+}
+
+/* Container */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 1000px;
+    width: 100%;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+header h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+    text-shadow: 0 4px 20px rgba(255, 112, 67, 0.15);
+}
+
+header p {
+    font-size: 0.9rem;
+    color: #8D7A73;
+    margin-top: 5px;
+}
+
+/* Dashboard Layout */
+.dashboard {
+    display: flex;
+    align-items: stretch;
+    gap: 30px;
+    width: 100%;
+    justify-content: center;
+}
+
+@media (max-width: 850px) {
+    .dashboard {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* Glassmorphic Cards */
+.panel {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 280px;
+    height: fit-content;
+}
+
+/* Turn Display Box */
+.turn-indicator {
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-left: 4px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.turn-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #8D7A73;
+    font-weight: 800;
+}
+
+.turn-player {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    transition: all 0.3s ease;
+}
+
+/* State Badge */
+.state-badge {
+    align-self: flex-start;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(255, 110, 64, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(255, 110, 64, 0.3);
+    box-shadow: 0 0 10px rgba(255, 110, 64, 0.1);
+}
+
+/* Score Section */
+.scores {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.score-row.active-player {
+    background: rgba(255, 110, 64, 0.05);
+    border-color: rgba(255, 110, 64, 0.2);
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.coin-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.coin-icon.white {
+    background: var(--white-coin);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.coin-icon.black {
+    background: var(--black-coin);
+    border: 1px solid #5d4037;
+}
+
+.player-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.score-val {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Board Outer border with wood bevel styling */
+.board-wrapper {
+    position: relative;
+    padding: 18px;
+    background: linear-gradient(145deg, #3d241d 0%, #1e100c 100%);
+    border-radius: 36px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8),
+                0 0 50px rgba(255, 110, 64, 0.08),
+                inset 0 3px 5px rgba(255,255,255,0.1),
+                inset 0 -3px 5px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+canvas {
+    background: #e5c4a5; /* High quality wood color */
+    border-radius: 20px;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4),
+                0 2px 4px rgba(0, 0, 0, 0.5);
+    display: block;
+    cursor: crosshair;
+}
+
+/* Instruction Text */
+.guidance {
+    color: #A39088;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    background: rgba(0,0,0,0.2);
+    padding: 14px;
+    border-radius: 12px;
+    border-left: 2px solid #8D7A73;
+}
+
+.guidance strong {
+    color: var(--gold);
+}
+
+/* Action Buttons */
+.btn {
+    background: linear-gradient(135deg, var(--accent) 0%, #D84315 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(216, 67, 21, 0.3);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(216, 67, 21, 0.5);
+    filter: brightness(1.1);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* Queen Status Box */
+.queen-status {
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: rgba(213, 0, 0, 0.05);
+    border: 1px dashed rgba(213, 0, 0, 0.2);
+    font-size: 0.8rem;
+    color: #FF5252;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.queen-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--crimson);
+    box-shadow: 0 0 8px var(--crimson);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
