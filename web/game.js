@@ -1,5 +1,5 @@
 // AntiGravity Carrom - Web Application Controller & Renderer
-// Championship Hardwood Board, Professional AI, and Real-Time Telemetry HUD
+// Procedural Maple Board (Pre-rendered for high FPS), Multi-Bounce Rays, Professional AI, and HUD
 
 class CarromGame {
     constructor() {
@@ -23,9 +23,9 @@ class CarromGame {
         );
 
         // Core states
-        this.gameState = 'POSITIONING'; // 'POSITIONING' | 'AIMING' | 'SIMULATING' | 'EVALUATING' | 'AI_THINKING' | 'GAME_OVER'
-        this.activePlayer = 'WHITE'; // 'WHITE' | 'BLACK'
-        this.opponentMode = 'LOCAL'; // 'LOCAL' | 'AI'
+        this.gameState = 'POSITIONING';
+        this.activePlayer = 'WHITE';
+        this.opponentMode = 'LOCAL';
 
         // Bottom baseline
         this.baselineY = this.boardSize * 0.82;
@@ -38,9 +38,12 @@ class CarromGame {
         this.dragCurrent = new Vector2D();
         this.maxDragDistance = 130;
 
-        // Scores
+        // Scores (White = 10 points per coin, Black = 5 points per coin)
         this.whiteScore = 0;
         this.blackScore = 0;
+        this.whiteCoinValue = 10;
+        this.blackCoinValue = 5;
+        this.queenValue = 30;
 
         // Queen cover rules
         this.queenPocketedThisTurn = false;
@@ -52,14 +55,19 @@ class CarromGame {
         this.pocketedThisTurn = [];
         this.strikerPocketedThisTurn = false;
 
-        // AI specific variables
+        // Floating points animation array
+        this.floatingTexts = [];
+
+        // AI variables
         this.aiThinkTimer = 0;
         this.aiTargetX = 0;
         this.aiShootImpulse = new Vector2D();
-        this.aiDragVisualDist = 0; // for animating pull-back
+        this.aiDragVisualDist = 0;
 
-        // Setup grains and controls
+        // Generate wood grains and pre-render background to completely resolve lag
         this.generateWoodGrains();
+        this.preRenderBoardBackground();
+
         this.setupSlider();
         this.setupModeSelector();
         this.setupInputListeners();
@@ -92,10 +100,131 @@ class CarromGame {
         }
     }
 
+    /**
+     * Pre-renders the complete wooden board background to an offscreen canvas.
+     * This moves ~500 expensive drawing paths per frame down to exactly 1 drawImage call,
+     * completely eliminating any visual lag or stuttering.
+     */
+    preRenderBoardBackground() {
+        this.bgCanvas = document.createElement('canvas');
+        this.bgCanvas.width = this.boardSize;
+        this.bgCanvas.height = this.boardSize;
+        const bgCtx = this.bgCanvas.getContext('2d');
+
+        // 1. Hardwood Maple Base
+        bgCtx.fillStyle = '#EBC29D';
+        bgCtx.fillRect(0, 0, this.boardSize, this.boardSize);
+
+        const woodGradient = bgCtx.createRadialGradient(
+            this.boardSize / 2, this.boardSize / 2, 40,
+            this.boardSize / 2, this.boardSize / 2, this.boardSize * 0.72
+        );
+        woodGradient.addColorStop(0, '#F5D3B3');
+        woodGradient.addColorStop(0.5, '#E5B891');
+        woodGradient.addColorStop(1, '#B9855B');
+        bgCtx.fillStyle = woodGradient;
+        bgCtx.fillRect(0, 0, this.boardSize, this.boardSize);
+
+        // Render fine vertical maple grains
+        bgCtx.strokeStyle = 'rgba(102, 51, 15, 0.04)';
+        bgCtx.lineWidth = 1;
+        this.woodPores.forEach(pore => {
+            bgCtx.beginPath();
+            bgCtx.moveTo(pore.x, pore.y);
+            bgCtx.lineTo(pore.x + pore.length * pore.angleOffset, pore.y + pore.length);
+            bgCtx.stroke();
+        });
+
+        // Render curved timber ring lines
+        this.woodGrains.forEach(ring => {
+            bgCtx.strokeStyle = `rgba(139, 69, 19, ${ring.opacity})`;
+            bgCtx.lineWidth = 2;
+            bgCtx.beginPath();
+            bgCtx.arc(ring.rx, ring.ry, ring.radius, ring.startAngle, ring.endAngle);
+            bgCtx.stroke();
+        });
+
+        // 2. Championship Diagonal lines & baseline borders
+        const baseMin = this.baselineMinX;
+        const baseMax = this.baselineMaxX;
+        const baseMinY = this.boardSize - this.baselineY;
+        const pocketOffset = this.pocketRadius * 0.95;
+
+        this.drawChampionshipArrows(bgCtx, baseMin, this.baselineY, pocketOffset, this.boardSize - pocketOffset); // Bottom-Left
+        this.drawChampionshipArrows(bgCtx, baseMax, this.baselineY, this.boardSize - pocketOffset, this.boardSize - pocketOffset); // Bottom-Right
+        this.drawChampionshipArrows(bgCtx, baseMin, baseMinY, pocketOffset, pocketOffset); // Top-Left
+        this.drawChampionshipArrows(bgCtx, baseMax, baseMinY, this.boardSize - pocketOffset, pocketOffset); // Top-Right
+
+        bgCtx.strokeStyle = 'rgba(110, 48, 25, 0.75)';
+        bgCtx.lineWidth = 2.0;
+
+        this.drawDoubleBaselineLines(bgCtx, baseMin, baseMax, this.baselineY, this.baselineY - 14);
+        this.drawDoubleBaselineLines(bgCtx, baseMin, baseMax, baseMinY, baseMinY + 14);
+        this.drawDoubleBaselineLinesVertical(bgCtx, baseMinY, this.baselineY, baseMinY, baseMinY + 14);
+        this.drawDoubleBaselineLinesVertical(bgCtx, baseMinY, this.baselineY, this.baselineY, this.baselineY - 14);
+
+        // Center rings decal
+        const cx = this.boardSize / 2;
+        const cy = this.boardSize / 2;
+        
+        bgCtx.strokeStyle = 'rgba(110, 48, 25, 0.7)';
+        bgCtx.lineWidth = 2;
+        bgCtx.beginPath();
+        bgCtx.arc(cx, cy, 60, 0, 2 * Math.PI);
+        bgCtx.stroke();
+
+        bgCtx.strokeStyle = 'rgba(213, 0, 0, 0.55)';
+        bgCtx.beginPath();
+        bgCtx.arc(cx, cy, 20, 0, 2 * Math.PI);
+        bgCtx.stroke();
+
+        bgCtx.fillStyle = 'rgba(255, 213, 79, 0.65)';
+        bgCtx.beginPath();
+        bgCtx.arc(cx, cy, 6, 0, 2 * Math.PI);
+        bgCtx.fill();
+
+        bgCtx.strokeStyle = 'rgba(213, 0, 0, 0.35)';
+        bgCtx.lineWidth = 1.5;
+        for (let i = 0; i < 12; i++) {
+            const angle = (i * 2 * Math.PI) / 12;
+            bgCtx.beginPath();
+            bgCtx.moveTo(cx + 6 * Math.cos(angle), cy + 6 * Math.sin(angle));
+            bgCtx.lineTo(cx + 20 * Math.cos(angle), cy + 20 * Math.sin(angle));
+            bgCtx.stroke();
+        }
+
+        // 3. Render pockets
+        this.physicsWorld.pockets.forEach(pocket => {
+            bgCtx.fillStyle = '#0D0807';
+            bgCtx.beginPath();
+            bgCtx.arc(pocket.x, pocket.y, this.pocketRadius, 0, 2 * Math.PI);
+            bgCtx.fill();
+
+            bgCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            bgCtx.lineWidth = 1;
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+                bgCtx.beginPath();
+                bgCtx.moveTo(pocket.x, pocket.y);
+                bgCtx.lineTo(
+                    pocket.x + this.pocketRadius * Math.cos(angle),
+                    pocket.y + this.pocketRadius * Math.sin(angle)
+                );
+                bgCtx.stroke();
+            }
+
+            bgCtx.strokeStyle = '#271713';
+            bgCtx.lineWidth = 3.5;
+            bgCtx.beginPath();
+            bgCtx.arc(pocket.x, pocket.y, this.pocketRadius, 0, 2 * Math.PI);
+            bgCtx.stroke();
+        });
+    }
+
     resetBoard() {
         this.physicsWorld.bodies = [];
         this.coins = [];
         this.pocketedThisTurn = [];
+        this.floatingTexts = [];
         this.strikerPocketedThisTurn = false;
         this.queenPocketedThisTurn = false;
         this.collisionCount = 0;
@@ -229,8 +358,7 @@ class CarromGame {
 
                 if (distance > 12) {
                     aimDir.normalize();
-                    // CALIBRATED FORCE SCALE: Multiplies speed by striker mass to negate mass division!
-                    const force = (distance / this.maxDragDistance) * 850; // Speed up to 850 px/s
+                    const force = (distance / this.maxDragDistance) * 850; // up to 850 px/s
                     const impulse = aimDir.multiply(force * this.striker.mass);
 
                     this.striker.velocity.clear();
@@ -251,7 +379,6 @@ class CarromGame {
         this.canvas.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', handleUp);
 
-        // Use { passive: false } on canvas active touch listeners to prevent browser cancel warnings
         this.canvas.addEventListener('touchstart', (e) => {
             if (e.cancelable) e.preventDefault();
             handleDown(e);
@@ -262,7 +389,6 @@ class CarromGame {
             handleMove(e);
         }, { passive: false });
 
-        // Never call preventDefault on window-level passive event listeners
         window.addEventListener('touchend', (e) => {
             handleUp(e);
         });
@@ -278,12 +404,35 @@ class CarromGame {
 
     handlePocketTriggered(body, pocketIndex) {
         sounds.playPocketSink();
+        
+        let pointsEarned = 0;
+        let color = '#FFF';
+
         if (body.type === 'STRIKER') {
             this.strikerPocketedThisTurn = true;
         } else {
             this.pocketedThisTurn.push(body.type);
             if (body.type === 'QUEEN') {
                 this.queenPocketedThisTurn = true;
+                pointsEarned = this.queenValue;
+                color = '#FF1744';
+            } else if (body.type === 'WHITE_COIN') {
+                pointsEarned = this.whiteCoinValue; // 10 Points
+                color = '#00E5FF';
+            } else if (body.type === 'BLACK_COIN') {
+                pointsEarned = this.blackCoinValue; // 5 Points
+                color = '#FFCA28';
+            }
+
+            // Spawn floating text points indicator
+            if (pointsEarned > 0) {
+                this.floatingTexts.push({
+                    x: body.position.x,
+                    y: body.position.y - 12,
+                    text: `+${pointsEarned}`,
+                    color: color,
+                    opacity: 1.0
+                });
             }
         }
     }
@@ -377,12 +526,11 @@ class CarromGame {
                     const pathStrikerToCoin = strikePos.copy().subtract(new Vector2D(baselineX, this.baselineY));
                     const distanceTotal = pathStrikerToCoin.length() + coinDist;
                     
-                    // High-accuracy velocity calculations compensating friction
                     const baseForceRequired = Math.sqrt(2 * distanceTotal * 1.15) * 6.5;
                     const clampedForce = Math.min(Math.max(baseForceRequired, 280), 800);
 
                     const errorAngle = (Math.random() - 0.5) * 0.025;
-                    const finalShotVector = pathStrikerToCoin.normalize().multiply(clampedForce * this.strikerMass); // Multiplied by mass!
+                    const finalShotVector = pathStrikerToCoin.normalize().multiply(clampedForce * this.strikerMass);
                     
                     const cosE = Math.cos(errorAngle);
                     const sinE = Math.sin(errorAngle);
@@ -442,6 +590,10 @@ class CarromGame {
         }
     }
 
+    // ==========================================
+    //      EVALUATE SCORING (CALIBRATED VALUES)
+    // ==========================================
+
     evaluateTurnOutcome() {
         let switchTurn = true;
 
@@ -459,7 +611,13 @@ class CarromGame {
             if (didCover) {
                 this.queenWaitingForCover = false;
                 this.queenOwner = this.activePlayer;
-                if (this.activePlayer === 'WHITE') this.whiteScore += 3; else this.blackScore += 3;
+                
+                // Queen cover awards 30 points
+                if (this.activePlayer === 'WHITE') {
+                    this.whiteScore += this.queenValue;
+                } else {
+                    this.blackScore += this.queenValue;
+                }
                 switchTurn = false;
             } else {
                 this.queenWaitingForCover = false;
@@ -473,20 +631,27 @@ class CarromGame {
             if (hasImmediateCover) {
                 this.queenWaitingForCover = false;
                 this.queenOwner = this.activePlayer;
-                if (this.activePlayer === 'WHITE') this.whiteScore += 3; else this.blackScore += 3;
+                
+                // Queen scored and immediately covered
+                if (this.activePlayer === 'WHITE') {
+                    this.whiteScore += this.queenValue;
+                } else {
+                    this.blackScore += this.queenValue;
+                }
                 switchTurn = false;
             } else {
                 switchTurn = false; 
             }
         } else {
+            // Standard point assignments: White = 10 Points, Black = 5 Points
             if (this.activePlayer === 'WHITE') {
                 if (whitesPocketed > 0) {
-                    this.whiteScore += whitesPocketed;
+                    this.whiteScore += whitesPocketed * this.whiteCoinValue;
                     switchTurn = false;
                 }
             } else {
                 if (blacksPocketed > 0) {
-                    this.blackScore += blacksPocketed;
+                    this.blackScore += blacksPocketed * this.blackCoinValue;
                     switchTurn = false;
                 }
             }
@@ -496,12 +661,31 @@ class CarromGame {
     }
 
     handleFoulStrikerSunk() {
-        if (this.activePlayer === 'WHITE' && this.whiteScore > 0) {
-            this.whiteScore--;
+        // Penalty: White costs 10 pts, Black costs 5 pts
+        if (this.activePlayer === 'WHITE') {
+            if (this.whiteScore >= this.whiteCoinValue) {
+                this.whiteScore -= this.whiteCoinValue;
+            }
             this.respawnCoin('WHITE_COIN');
-        } else if (this.activePlayer === 'BLACK' && this.blackScore > 0) {
-            this.blackScore--;
+            this.floatingTexts.push({
+                x: this.striker.position.x,
+                y: this.striker.position.y - 12,
+                text: `-${this.whiteCoinValue} Foul`,
+                color: '#FF1744',
+                opacity: 1.0
+            });
+        } else {
+            if (this.blackScore >= this.blackCoinValue) {
+                this.blackScore -= this.blackCoinValue;
+            }
             this.respawnCoin('BLACK_COIN');
+            this.floatingTexts.push({
+                x: this.striker.position.x,
+                y: this.striker.position.y - 12,
+                text: `-${this.blackCoinValue} Foul`,
+                color: '#FF1744',
+                opacity: 1.0
+            });
         }
     }
 
@@ -592,7 +776,7 @@ class CarromGame {
 
         if (this.gameState === 'GAME_OVER') {
             const winner = this.whiteScore > this.blackScore ? 'WHITE' : 'BLACK';
-            alert(`🏆 MATCH OVER! ${winner} Player wins the Championship!`);
+            alert(`🏆 MATCH OVER! ${winner} Player wins the Championship with ${Math.max(this.whiteScore, this.blackScore)} Points!`);
             this.whiteScore = 0;
             this.blackScore = 0;
             this.queenWaitingForCover = false;
@@ -635,114 +819,13 @@ class CarromGame {
     render() {
         this.ctx.clearRect(0, 0, this.boardSize, this.boardSize);
 
-        // 1. Warm procedural hardwood background
-        this.ctx.fillStyle = '#EBC29D';
-        this.ctx.fillRect(0, 0, this.boardSize, this.boardSize);
-
-        const woodGradient = this.ctx.createRadialGradient(
-            this.boardSize / 2, this.boardSize / 2, 40,
-            this.boardSize / 2, this.boardSize / 2, this.boardSize * 0.72
-        );
-        woodGradient.addColorStop(0, '#F5D3B3');
-        woodGradient.addColorStop(0.5, '#E5B891');
-        woodGradient.addColorStop(1, '#B9855B');
-        this.ctx.fillStyle = woodGradient;
-        this.ctx.fillRect(0, 0, this.boardSize, this.boardSize);
-
-        this.ctx.strokeStyle = 'rgba(102, 51, 15, 0.04)';
-        this.ctx.lineWidth = 1;
-        this.woodPores.forEach(pore => {
-            this.ctx.beginPath();
-            this.ctx.moveTo(pore.x, pore.y);
-            this.ctx.lineTo(pore.x + pore.length * pore.angleOffset, pore.y + pore.length);
-            this.ctx.stroke();
-        });
-
-        this.woodGrains.forEach(ring => {
-            this.ctx.strokeStyle = `rgba(139, 69, 19, ${ring.opacity})`;
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(ring.rx, ring.ry, ring.radius, ring.startAngle, ring.endAngle);
-            this.ctx.stroke();
-        });
-
-        // 2. Championship Diagonal lines & baseline borders
-        const baseMin = this.baselineMinX;
-        const baseMax = this.baselineMaxX;
-        const baseMinY = this.boardSize - this.baselineY;
-        const pocketOffset = this.pocketRadius * 0.95;
-
-        this.drawChampionshipArrows(baseMin, this.baselineY, pocketOffset, this.boardSize - pocketOffset); // Bottom-Left
-        this.drawChampionshipArrows(baseMax, this.baselineY, this.boardSize - pocketOffset, this.boardSize - pocketOffset); // Bottom-Right
-        this.drawChampionshipArrows(baseMin, baseMinY, pocketOffset, pocketOffset); // Top-Left
-        this.drawChampionshipArrows(baseMax, baseMinY, this.boardSize - pocketOffset, pocketOffset); // Top-Right
-
-        this.ctx.strokeStyle = 'rgba(110, 48, 25, 0.75)';
-        this.ctx.lineWidth = 2.0;
-
-        this.drawDoubleBaselineLines(baseMin, baseMax, this.baselineY, this.baselineY - 14);
-        this.drawDoubleBaselineLines(baseMin, baseMax, baseMinY, baseMinY + 14);
-        this.drawDoubleBaselineLinesVertical(baseMinY, this.baselineY, baseMinY, baseMinY + 14);
-        this.drawDoubleBaselineLinesVertical(baseMinY, this.baselineY, this.baselineY, this.baselineY - 14);
-
-        // Center rings decal
-        const cx = this.boardSize / 2;
-        const cy = this.boardSize / 2;
-        
-        this.ctx.strokeStyle = 'rgba(110, 48, 25, 0.7)';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(cx, cy, 60, 0, 2 * Math.PI);
-        this.ctx.stroke();
-
-        this.ctx.strokeStyle = 'rgba(213, 0, 0, 0.55)';
-        this.ctx.beginPath();
-        this.ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
-        this.ctx.stroke();
-
-        this.ctx.fillStyle = 'rgba(255, 213, 79, 0.65)';
-        this.ctx.beginPath();
-        this.ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-        this.ctx.fill();
-
-        this.ctx.strokeStyle = 'rgba(213, 0, 0, 0.35)';
-        this.ctx.lineWidth = 1.5;
-        for (let i = 0; i < 12; i++) {
-            const angle = (i * 2 * Math.PI) / 12;
-            this.ctx.beginPath();
-            this.ctx.moveTo(cx + 6 * Math.cos(angle), cy + 6 * Math.sin(angle));
-            this.ctx.lineTo(cx + 20 * Math.cos(angle), cy + 20 * Math.sin(angle));
-            this.ctx.stroke();
-        }
-
-        // 3. Render pockets
-        this.physicsWorld.pockets.forEach(pocket => {
-            this.ctx.fillStyle = '#0D0807';
-            this.ctx.beginPath();
-            this.ctx.arc(pocket.x, pocket.y, this.pocketRadius, 0, 2 * Math.PI);
-            this.ctx.fill();
-
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            this.ctx.lineWidth = 1;
-            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
-                this.ctx.beginPath();
-                this.ctx.moveTo(pocket.x, pocket.y);
-                this.ctx.lineTo(
-                    pocket.x + this.pocketRadius * Math.cos(angle),
-                    pocket.y + this.pocketRadius * Math.sin(angle)
-                );
-                this.ctx.stroke();
-            }
-
-            this.ctx.strokeStyle = '#271713';
-            this.ctx.lineWidth = 3.5;
-            this.ctx.beginPath();
-            this.ctx.arc(pocket.x, pocket.y, this.pocketRadius, 0, 2 * Math.PI);
-            this.ctx.stroke();
-        });
+        // ==========================================
+        // 1. DRAW PRE-RENDERED HARDWOOD BOARD (0 Lags!)
+        // ==========================================
+        this.ctx.drawImage(this.bgCanvas, 0, 0);
 
         // ==========================================
-        // 4. PREDICTIVE MULTI-BOUNCE TRAJECTORY PATH
+        // 2. PREDICTIVE MULTI-BOUNCE TRAJECTORY PATH
         // ==========================================
         let shouldPredict = false;
         let pDir = null;
@@ -756,12 +839,12 @@ class CarromGame {
         } else if (this.gameState === 'AI_THINKING' && this.aiThinkTimer > 0.8) {
             shouldPredict = true;
             pDir = this.aiShootImpulse.copy();
-            pLen = pDir.length() * 0.15; // visual pull back line scaling
+            pLen = pDir.length() * 0.15;
         }
 
         if (shouldPredict && pLen > 12) {
             pDir.normalize();
-            // Slingshot pulling rubber band line (backward direction)
+            // Slingshot pull line
             this.ctx.save();
             this.ctx.strokeStyle = '#FFCA28';
             this.ctx.lineWidth = 3;
@@ -782,9 +865,9 @@ class CarromGame {
             this.ctx.fill();
             this.ctx.restore();
 
-            // Trace 3-Bounce Raycast Trajectory projection
+            // Trace 3-Bounce Raycast prediction
             this.ctx.save();
-            this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)'; // bright cyan prediction line
+            this.ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)';
             this.ctx.lineWidth = 2.5;
             this.ctx.setLineDash([5, 6]);
             this.ctx.shadowBlur = 8;
@@ -836,7 +919,9 @@ class CarromGame {
             this.ctx.restore();
         }
 
-        // 5. Draw pieces
+        // ==========================================
+        // 3. DRAW COINS & STRIKER
+        // ==========================================
         this.physicsWorld.bodies.forEach(body => {
             if (body.isPocketed) return;
 
@@ -900,7 +985,34 @@ class CarromGame {
             this.ctx.fill();
         });
 
-        // 6. Draw AI "Thinking" Indicator Overlay directly on Canvas
+        // ==========================================
+        // 4. DRAW FLOATING POINTS INDICATORS
+        // ==========================================
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const txt = this.floatingTexts[i];
+            this.ctx.save();
+            this.ctx.font = 'bold 16px Outfit, Inter, sans-serif';
+            this.ctx.fillStyle = txt.color;
+            this.ctx.globalAlpha = txt.opacity;
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowBlur = 4;
+            this.ctx.shadowColor = txt.color;
+            
+            this.ctx.fillText(txt.text, txt.x, txt.y);
+            this.ctx.restore();
+
+            // Float upward and fade away
+            txt.y -= 1.2;
+            txt.opacity -= 0.02;
+
+            if (txt.opacity <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        // ==========================================
+        // 5. DRAW AI "THINKING" OVERLAY
+        // ==========================================
         if (this.gameState === 'AI_THINKING') {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
             this.ctx.fillRect(0, 0, this.boardSize, this.boardSize);
@@ -915,69 +1027,69 @@ class CarromGame {
         }
     }
 
-    drawDoubleBaselineLines(minX, maxX, y1, y2) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(minX, y1);
-        this.ctx.lineTo(maxX, y1);
-        this.ctx.stroke();
+    drawDoubleBaselineLines(ctx, minX, maxX, y1, y2) {
+        ctx.beginPath();
+        ctx.moveTo(minX, y1);
+        ctx.lineTo(maxX, y1);
+        ctx.stroke();
 
-        this.ctx.beginPath();
-        this.ctx.moveTo(minX, y2);
-        this.ctx.lineTo(maxX, y2);
-        this.ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(minX, y2);
+        ctx.lineTo(maxX, y2);
+        ctx.stroke();
 
-        this.ctx.fillStyle = 'rgba(213,0,0,0.85)';
-        this.ctx.beginPath();
-        this.ctx.arc(minX, (y1 + y2) / 2, 9, 0, 2 * Math.PI);
-        this.ctx.arc(maxX, (y1 + y2) / 2, 9, 0, 2 * Math.PI);
-        this.ctx.fill();
-        this.ctx.lineWidth = 1.5;
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-        this.ctx.stroke();
+        ctx.fillStyle = 'rgba(213,0,0,0.85)';
+        ctx.beginPath();
+        ctx.arc(minX, (y1 + y2) / 2, 9, 0, 2 * Math.PI);
+        ctx.arc(maxX, (y1 + y2) / 2, 9, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.stroke();
     }
 
-    drawDoubleBaselineLinesVertical(minY, maxY, x1, x2) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, minY);
-        this.ctx.lineTo(x1, maxY);
-        this.ctx.stroke();
+    drawDoubleBaselineLinesVertical(ctx, minY, maxY, x1, x2) {
+        ctx.beginPath();
+        ctx.moveTo(x1, minY);
+        ctx.lineTo(x1, maxY);
+        ctx.stroke();
 
-        this.ctx.beginPath();
-        this.ctx.moveTo(x2, minY);
-        this.ctx.lineTo(x2, maxY);
-        this.ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, minY);
+        ctx.lineTo(x2, maxY);
+        ctx.stroke();
 
-        this.ctx.fillStyle = 'rgba(213,0,0,0.85)';
-        this.ctx.beginPath();
-        this.ctx.arc((x1 + x2) / 2, minY, 9, 0, 2 * Math.PI);
-        this.ctx.arc((x1 + x2) / 2, maxY, 9, 0, 2 * Math.PI);
-        this.ctx.fill();
-        this.ctx.lineWidth = 1.5;
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-        this.ctx.stroke();
+        ctx.fillStyle = 'rgba(213,0,0,0.85)';
+        ctx.beginPath();
+        ctx.arc((x1 + x2) / 2, minY, 9, 0, 2 * Math.PI);
+        ctx.arc((x1 + x2) / 2, maxY, 9, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.stroke();
     }
 
-    drawChampionshipArrows(xStart, yStart, xEnd, yEnd) {
-        this.ctx.strokeStyle = 'rgba(102, 51, 15, 0.45)';
-        this.ctx.lineWidth = 1.8;
-        this.ctx.beginPath();
-        this.ctx.moveTo(xStart, yStart);
-        this.ctx.lineTo(xEnd, yEnd);
-        this.ctx.stroke();
+    drawChampionshipArrows(ctx, xStart, yStart, xEnd, yEnd) {
+        ctx.strokeStyle = 'rgba(102, 51, 15, 0.45)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(xStart, yStart);
+        ctx.lineTo(xEnd, yEnd);
+        ctx.stroke();
 
         const angle = Math.atan2(yEnd - yStart, xEnd - xStart);
         const arrowDist = 32;
         const arrowX = xEnd - arrowDist * Math.cos(angle);
         const arrowY = yEnd - arrowDist * Math.sin(angle);
 
-        this.ctx.fillStyle = 'rgba(213, 0, 0, 0.7)';
-        this.ctx.beginPath();
-        this.ctx.arc(arrowX, arrowY, 5, 0, 2 * Math.PI);
-        this.ctx.fill();
+        ctx.fillStyle = 'rgba(213, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.arc(arrowX, arrowY, 5, 0, 2 * Math.PI);
+        ctx.fill();
     }
 }
 
-// Instantiate game
+// Instantiate game on DOM ready
 window.addEventListener('DOMContentLoaded', () => {
     window.game = new CarromGame();
 });
