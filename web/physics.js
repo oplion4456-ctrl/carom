@@ -1,4 +1,5 @@
 // AntiGravity 2D Physics Engine - JavaScript Port for Carrom Game
+// Highly optimized and physically calibrated for polished wood-on-wood dynamics.
 
 class Vector2D {
     constructor(x = 0, y = 0) {
@@ -75,8 +76,10 @@ class RigidBody2D {
         this.position = new Vector2D(x, y);
         this.velocity = new Vector2D(0, 0);
         this.acceleration = new Vector2D(0, 0);
-        this.restitution = type === 'STRIKER' ? 0.70 : 0.65;
-        this.linearDamping = 1.1; // Polished wood-on-wood sliding friction
+        
+        // Calibrated bounciness and slide damping representing wood-on-wood sliding
+        this.restitution = type === 'STRIKER' ? 0.72 : 0.65;
+        this.linearDamping = 1.15; // Realistic friction sliding resistance
         this.isPocketed = false;
     }
 
@@ -85,6 +88,7 @@ class RigidBody2D {
     }
 
     applyImpulse(impulse) {
+        if (this.isPocketed) return;
         this.velocity.x += impulse.x * this.invMass;
         this.velocity.y += impulse.y * this.invMass;
     }
@@ -92,18 +96,18 @@ class RigidBody2D {
     update(dt) {
         if (this.isPocketed) return;
 
-        // Semi-implicit Euler
+        // Semi-implicit Euler integration
         this.velocity.x += this.acceleration.x * dt;
         this.velocity.y += this.acceleration.y * dt;
 
         this.position.x += this.velocity.x * dt;
         this.position.y += this.velocity.y * dt;
 
-        // Sliding friction
+        // Linear powder sliding resistance
         this.velocity.multiply(1 - (this.linearDamping * dt));
 
-        // Threshold limit to stop creep
-        const minVelocity = 1.5;
+        // Threshold limit to stop dynamic creep
+        const minVelocity = 2.0;
         if (this.velocity.lengthSquared() < minVelocity * minVelocity) {
             this.velocity.clear();
         }
@@ -120,13 +124,13 @@ class PhysicsWorld {
         this.onPocketed = onPocketedCallback;
         this.onCollision = onCollisionCallback;
 
-        // Position 4 corner pockets
-        const offset = pocketRadius * 1.1;
+        // Corner pockets positions (slightly offset inward to align with board templates)
+        const pocketOffset = pocketRadius * 0.95;
         this.pockets = [
-            new Vector2D(offset, offset),                         // Top-Left
-            new Vector2D(boardSize - offset, offset),             // Top-Right
-            new Vector2D(offset, boardSize - offset),             // Bottom-Left
-            new Vector2D(boardSize - offset, boardSize - offset)  // Bottom-Right
+            new Vector2D(pocketOffset, pocketOffset),
+            new Vector2D(boardSize - pocketOffset, pocketOffset),
+            new Vector2D(pocketOffset, boardSize - pocketOffset),
+            new Vector2D(boardSize - pocketOffset, boardSize - pocketOffset)
         ];
     }
 
@@ -151,7 +155,8 @@ class PhysicsWorld {
                 const dy = body.position.y - pocket.y;
                 const distSq = dx * dx + dy * dy;
 
-                const sinkThreshold = this.pocketRadius * 0.8;
+                // Center of gravity drop condition (center of coin overlaps pocket boundary)
+                const sinkThreshold = this.pocketRadius * 0.85;
                 if (distSq < sinkThreshold * sinkThreshold) {
                     body.isPocketed = true;
                     body.velocity.clear();
@@ -163,34 +168,48 @@ class PhysicsWorld {
     }
 
     resolveWallCollisions() {
-        const bounceDamping = 0.85; // Additional friction on wall impact
+        const wallDamping = 0.80; // Wood border contact dampening
+        const borderLimit = this.boardSize;
+
         for (const body of this.bodies) {
             if (body.isPocketed) continue;
 
-            // Left
+            let hit = false;
+            let impactSpeed = 0;
+
+            // Left Border
             if (body.position.x - body.radius < 0) {
                 body.position.x = body.radius;
-                body.velocity.x = -body.velocity.x * body.restitution * bounceDamping;
-                if (this.onCollision) this.onCollision(body, null, body.velocity.length());
+                impactSpeed = Math.abs(body.velocity.x);
+                body.velocity.x = -body.velocity.x * body.restitution * wallDamping;
+                hit = true;
             }
-            // Right
-            else if (body.position.x + body.radius > this.boardSize) {
-                body.position.x = this.boardSize - body.radius;
-                body.velocity.x = -body.velocity.x * body.restitution * bounceDamping;
-                if (this.onCollision) this.onCollision(body, null, body.velocity.length());
+            // Right Border
+            else if (body.position.x + body.radius > borderLimit) {
+                body.position.x = borderLimit - body.radius;
+                impactSpeed = Math.abs(body.velocity.x);
+                body.velocity.x = -body.velocity.x * body.restitution * wallDamping;
+                hit = true;
             }
 
-            // Top
+            // Top Border
             if (body.position.y - body.radius < 0) {
                 body.position.y = body.radius;
-                body.velocity.y = -body.velocity.y * body.restitution * bounceDamping;
-                if (this.onCollision) this.onCollision(body, null, body.velocity.length());
+                impactSpeed = Math.abs(body.velocity.y);
+                body.velocity.y = -body.velocity.y * body.restitution * wallDamping;
+                hit = true;
             }
-            // Bottom
-            else if (body.position.y + body.radius > this.boardSize) {
-                body.position.y = this.boardSize - body.radius;
-                body.velocity.y = -body.velocity.y * body.restitution * bounceDamping;
-                if (this.onCollision) this.onCollision(body, null, body.velocity.length());
+            // Bottom Border
+            else if (body.position.y + body.radius > borderLimit) {
+                body.position.y = borderLimit - body.radius;
+                impactSpeed = Math.abs(body.velocity.y);
+                body.velocity.y = -body.velocity.y * body.restitution * wallDamping;
+                hit = true;
+            }
+
+            // High-precision threshold check to trigger audio to avoid friction ticking
+            if (hit && this.onCollision && impactSpeed > 15) {
+                this.onCollision(body, null, impactSpeed);
             }
         }
     }
@@ -219,7 +238,7 @@ class PhysicsWorld {
                     const rvy = b.velocity.y - a.velocity.y;
                     const velAlongNormal = rvx * nx + rvy * ny;
 
-                    // Moving towards each other
+                    // Only resolve if moving towards each other (prevents overlapping stickiness)
                     if (velAlongNormal < 0) {
                         const e = Math.min(a.restitution, b.restitution);
 
@@ -236,8 +255,8 @@ class PhysicsWorld {
                         b.velocity.x += impulseX * b.invMass;
                         b.velocity.y += impulseY * b.invMass;
 
-                        // Penetration correction
-                        const percent = 0.8;
+                        // Positional correction (resolves intersection clipping)
+                        const percent = 0.85; // penetration percentage correction
                         const slop = 0.01;
                         const penetration = radiusSum - distance;
                         if (penetration > slop) {
@@ -252,9 +271,9 @@ class PhysicsWorld {
                             b.position.y += correctionY * b.invMass;
                         }
 
-                        // Play dynamic sound feedback
+                        // Trigger dynamic audio feedback
                         const impactSpeed = Math.abs(velAlongNormal);
-                        if (this.onCollision) {
+                        if (this.onCollision && impactSpeed > 10) {
                             this.onCollision(a, b, impactSpeed);
                         }
                     }

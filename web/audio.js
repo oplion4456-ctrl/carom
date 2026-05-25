@@ -1,4 +1,6 @@
 // Web Audio API Sound Synthesizer for Tactile Game Sound Effects
+// Highly optimized to generate realistic hardwood clacks and low thuds without files.
+
 class AudioSynthesizer {
     constructor() {
         this.ctx = null;
@@ -6,10 +8,16 @@ class AudioSynthesizer {
 
     init() {
         if (this.ctx) return;
-        // Lazily initialize context on first user interaction to bypass browser security policies
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (AudioContextClass) {
             this.ctx = new AudioContextClass();
+        }
+    }
+
+    resume() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
         }
     }
 
@@ -17,57 +25,55 @@ class AudioSynthesizer {
      * Wood-on-wood collision click/clack sound.
      */
     playClack(speed) {
-        this.init();
-        if (!this.ctx || this.ctx.state === 'suspended') return;
+        this.resume();
+        if (!this.ctx) return;
 
-        // Scale volume with collision speed
-        const volume = Math.min(speed / 300, 1.0);
-        if (volume < 0.05) return; // Silent for micro-taps
+        const volume = Math.min(speed / 400, 1.0);
+        if (volume < 0.05) return;
 
         const now = this.ctx.currentTime;
 
-        // 1. Clack (high pitch, ultra short decay)
+        // 1. High frequency organic timber snap (triangle)
         const osc1 = this.ctx.createOscillator();
         const gain1 = this.ctx.createGain();
         osc1.type = 'triangle';
-        osc1.frequency.setValueAtTime(650, now);
-        osc1.frequency.exponentialRampToValueAtTime(150, now + 0.04);
+        osc1.frequency.setValueAtTime(750, now);
+        osc1.frequency.exponentialRampToValueAtTime(180, now + 0.03);
         
-        gain1.gain.setValueAtTime(volume * 0.4, now);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        gain1.gain.setValueAtTime(volume * 0.45, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
 
-        // 2. Thump (body resonance, slightly longer decay)
+        // 2. Mid timber resonance body thump (sine)
         const osc2 = this.ctx.createOscillator();
         const gain2 = this.ctx.createGain();
         osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(140, now);
-        osc2.frequency.exponentialRampToValueAtTime(80, now + 0.06);
+        osc2.frequency.setValueAtTime(160, now);
+        osc2.frequency.exponentialRampToValueAtTime(70, now + 0.07);
 
-        gain2.gain.setValueAtTime(volume * 0.6, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        gain2.gain.setValueAtTime(volume * 0.55, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
-        // Connect
+        // Routing
         osc1.connect(gain1);
         gain1.connect(this.ctx.destination);
 
         osc2.connect(gain2);
         gain2.connect(this.ctx.destination);
 
-        // Start/Stop
         osc1.start(now);
-        osc1.stop(now + 0.06);
+        osc1.stop(now + 0.05);
         osc2.start(now);
-        osc2.stop(now + 0.13);
+        osc2.stop(now + 0.10);
     }
 
     /**
-     * Wood board border wall hit (lower frequency thud).
+     * Wood board border wall hit (lower frequency heavy thud).
      */
     playWallThud(speed) {
-        this.init();
-        if (!this.ctx || this.ctx.state === 'suspended') return;
+        this.resume();
+        if (!this.ctx) return;
 
-        const volume = Math.min(speed / 200, 0.7);
+        const volume = Math.min(speed / 300, 0.75);
         if (volume < 0.05) return;
 
         const now = this.ctx.currentTime;
@@ -75,40 +81,40 @@ class AudioSynthesizer {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(95, now);
-        osc.frequency.exponentialRampToValueAtTime(45, now + 0.15);
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.12);
 
-        gain.gain.setValueAtTime(volume * 0.8, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        gain.gain.setValueAtTime(volume * 0.9, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.2);
+        osc.stop(now + 0.16);
     }
 
     /**
-     * Sinking coin into a pocket (satisfying "shwoop-thud").
+     * Sinking coin into a pocket (satisfying low pass net shuffle "shwup").
      */
     playPocketSink() {
-        this.init();
-        if (!this.ctx || this.ctx.state === 'suspended') return;
+        this.resume();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
 
-        // Slide down
+        // Low sweep
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(220, now);
-        osc.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.22);
 
-        gain.gain.setValueAtTime(0.5, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        gain.gain.setValueAtTime(0.65, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
-        // Low-pass filtered noise to represent pocket net shuffle
-        const bufferSize = this.ctx.sampleRate * 0.25;
+        // White noise node representing leather net impact
+        const bufferSize = this.ctx.sampleRate * 0.20;
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
@@ -120,14 +126,13 @@ class AudioSynthesizer {
 
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(350, now);
-        filter.frequency.exponentialRampToValueAtTime(100, now + 0.25);
+        filter.frequency.setValueAtTime(400, now);
+        filter.frequency.exponentialRampToValueAtTime(80, now + 0.20);
 
         const noiseGain = this.ctx.createGain();
-        noiseGain.gain.setValueAtTime(0.18, now);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        noiseGain.gain.setValueAtTime(0.20, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
 
-        // Connect
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
@@ -135,14 +140,12 @@ class AudioSynthesizer {
         filter.connect(noiseGain);
         noiseGain.connect(this.ctx.destination);
 
-        // Start/Stop
         osc.start(now);
-        osc.stop(now + 0.26);
+        osc.stop(now + 0.23);
 
         noiseNode.start(now);
-        noiseNode.stop(now + 0.26);
+        noiseNode.stop(now + 0.23);
     }
 }
 
-// Export a single instance
 const sounds = new AudioSynthesizer();

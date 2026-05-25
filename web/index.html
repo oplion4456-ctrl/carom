@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AntiGravity 2D Carrom - High-Fidelity Web Simulator</title>
+    <title>AntiGravity 2D Carrom - Hardwood Championship Board</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,20 +12,34 @@
         
         <header>
             <h1>AntiGravity Carrom</h1>
-            <p>High-Fidelity 2D Physics Simulator & Wood Slide Mechanics</p>
+            <p>Hardwood Championship Simulator & Procedural Timber Physics</p>
         </header>
 
         <div class="dashboard">
 
-            <!-- Playable Board Wrapper -->
-            <div class="board-wrapper">
-                <canvas id="carromCanvas" width="600" height="600"></canvas>
+            <!-- Playable Board & Slider Wrapper -->
+            <div class="board-column">
+                <div class="board-wrapper">
+                    <canvas id="carromCanvas" width="600" height="600"></canvas>
+                </div>
+                
+                <!-- Baseline Slider Control -->
+                <div class="slider-panel">
+                    <div class="slider-header">
+                        <span class="slider-title">Position Striker</span>
+                        <span class="slider-hint">Slide to align, then drag striker on board to shoot</span>
+                    </div>
+                    <input type="range" id="strikerSlider" min="0" max="100" value="50" class="premium-slider">
+                </div>
             </div>
 
             <!-- Dashboard Panel -->
             <div class="panel">
                 
-                <div class="state-badge" id="gameStateBadge">Positioning</div>
+                <div class="state-badge-container">
+                    <div class="state-badge" id="gameStateBadge">Positioning</div>
+                    <div class="turn-dot" id="turnIndicatorDot"></div>
+                </div>
 
                 <div class="turn-indicator">
                     <span class="turn-title">Current Turn</span>
@@ -57,9 +71,9 @@
                 </div>
 
                 <div class="guidance">
-                    <strong>Controls:</strong><br>
-                    1. <span style="color: var(--accent);">Positioning Phase:</span> Move the mouse or drag horizontally over the bottom baseline to position the striker. Tap/Click to confirm.<br><br>
-                    2. <span style="color: #FFD54F;">Aiming Phase:</span> Click and drag backward from the striker (like a slingshot/rubber band) to aim. Release to fire!
+                    <strong>How to Play:</strong><br>
+                    1. 🎚️ **Align:** Slide the baseline slider below the board horizontally to position your striker.<br><br>
+                    2. 🏹 **Aim & Shoot:** Click/touch directly on the **striker**, drag backward (like a slingshot), and release to shoot!
                 </div>
 
                 <button class="btn" id="restartBtn">Reset Board</button>
