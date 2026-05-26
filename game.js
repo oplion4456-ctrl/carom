@@ -72,7 +72,6 @@ class CarromGame {
         this.preRenderBoardBackground();
 
         this.setupSlider();
-        this.setupModeSelector();
         this.setupEntryScreen();
         this.setupInputListeners();
         this.resetBoard();
@@ -281,28 +280,6 @@ class CarromGame {
         });
     }
 
-    setupModeSelector() {
-        const localBtn = document.getElementById('modeLocalBtn');
-        const aiBtn = document.getElementById('modeAiBtn');
-        const blackName = document.getElementById('blackPlayerName');
-
-        localBtn.addEventListener('click', () => {
-            this.opponentMode = 'LOCAL';
-            localBtn.classList.add('active');
-            aiBtn.classList.remove('active');
-            blackName.innerText = 'Black Score';
-            this.resetBoard();
-        });
-
-        aiBtn.addEventListener('click', () => {
-            this.opponentMode = 'AI';
-            aiBtn.classList.add('active');
-            localBtn.classList.remove('active');
-            blackName.innerText = 'Championship AI';
-            this.resetBoard();
-        });
-    }
-
     setupEntryScreen() {
         const entryScreen = document.getElementById('entryScreen');
         const gameContainer = document.getElementById('gameArenaContainer');
@@ -345,11 +322,10 @@ class CarromGame {
             this.opponentMode = selectedMode;
             document.getElementById('hudOpponentMode').innerText = selectedMode === 'LOCAL' ? '2-Player' : 'Championship AI';
             
-            // Sync with dashboard buttons just in case
             if (selectedMode === 'LOCAL') {
-                document.getElementById('modeLocalBtn')?.click(); // trigger logic
+                document.getElementById('blackPlayerName').innerText = 'Black Score';
             } else {
-                document.getElementById('modeAiBtn')?.click();
+                document.getElementById('blackPlayerName').innerText = 'Championship AI';
             }
 
             if (selectedFriction === 'FAST') {
@@ -436,7 +412,7 @@ class CarromGame {
 
                 if (distance > 12) {
                     aimDir.normalize();
-                    const force = (distance / this.maxDragDistance) * 850; // up to 850 px/s
+                    const force = (distance / this.maxDragDistance) * 2500; // up to 2500 px/s
                     const impulse = aimDir.multiply(force * this.striker.mass);
 
                     this.striker.velocity.clear();
@@ -605,7 +581,7 @@ class CarromGame {
                     const distanceTotal = pathStrikerToCoin.length() + coinDist;
                     
                     const baseForceRequired = Math.sqrt(2 * distanceTotal * 1.15) * 6.5;
-                    const clampedForce = Math.min(Math.max(baseForceRequired, 280), 800);
+                    const clampedForce = Math.min(Math.max(baseForceRequired, 280), 2500);
 
                     const errorAngle = (Math.random() - 0.5) * 0.025;
                     const finalShotVector = pathStrikerToCoin.normalize().multiply(clampedForce * this.strikerMass);
