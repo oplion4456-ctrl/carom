@@ -27,8 +27,9 @@ class CarromGame {
         this.activePlayer = 'WHITE';
         this.opponentMode = 'LOCAL';
 
-        // Bottom baseline
+        // Bottom and Top baselines
         this.baselineY = this.boardSize * 0.82;
+        this.topBaselineY = this.boardSize * 0.18;
         this.baselineMinX = this.boardSize * 0.16;
         this.baselineMaxX = this.boardSize * 0.84;
 
@@ -118,6 +119,14 @@ class CarromGame {
         bgCtx.fillStyle = '#EBC29D';
         bgCtx.fillRect(0, 0, this.boardSize, this.boardSize);
 
+        // Outer dark wood frame
+        bgCtx.lineWidth = 28;
+        bgCtx.strokeStyle = '#230b05';
+        bgCtx.strokeRect(14, 14, this.boardSize - 28, this.boardSize - 28);
+        bgCtx.lineWidth = 2;
+        bgCtx.strokeStyle = '#4a2512';
+        bgCtx.strokeRect(28, 28, this.boardSize - 56, this.boardSize - 56);
+
         const woodGradient = bgCtx.createRadialGradient(
             this.boardSize / 2, this.boardSize / 2, 40,
             this.boardSize / 2, this.boardSize / 2, this.boardSize * 0.72
@@ -170,20 +179,27 @@ class CarromGame {
         const cx = this.boardSize / 2;
         const cy = this.boardSize / 2;
         
-        bgCtx.strokeStyle = 'rgba(110, 48, 25, 0.7)';
+        bgCtx.strokeStyle = '#2a0800';
+        bgCtx.lineWidth = 3;
+        bgCtx.beginPath();
+        bgCtx.arc(cx, cy, 65, 0, 2 * Math.PI);
+        bgCtx.stroke();
+        
+        bgCtx.strokeStyle = 'rgba(110, 48, 25, 0.8)';
+        bgCtx.lineWidth = 1;
+        bgCtx.beginPath();
+        bgCtx.arc(cx, cy, 58, 0, 2 * Math.PI);
+        bgCtx.stroke();
+
+        bgCtx.strokeStyle = 'rgba(213, 0, 0, 0.7)';
         bgCtx.lineWidth = 2;
         bgCtx.beginPath();
-        bgCtx.arc(cx, cy, 60, 0, 2 * Math.PI);
+        bgCtx.arc(cx, cy, 22, 0, 2 * Math.PI);
         bgCtx.stroke();
 
-        bgCtx.strokeStyle = 'rgba(213, 0, 0, 0.55)';
+        bgCtx.fillStyle = '#E64A19';
         bgCtx.beginPath();
-        bgCtx.arc(cx, cy, 20, 0, 2 * Math.PI);
-        bgCtx.stroke();
-
-        bgCtx.fillStyle = 'rgba(255, 213, 79, 0.65)';
-        bgCtx.beginPath();
-        bgCtx.arc(cx, cy, 6, 0, 2 * Math.PI);
+        bgCtx.arc(cx, cy, 7, 0, 2 * Math.PI);
         bgCtx.fill();
 
         bgCtx.strokeStyle = 'rgba(213, 0, 0, 0.35)';
@@ -223,6 +239,10 @@ class CarromGame {
         });
     }
 
+    getCurrentBaselineY() {
+        return this.activePlayer === 'BLACK' ? this.topBaselineY : this.baselineY;
+    }
+
     resetBoard() {
         this.physicsWorld.bodies = [];
         this.coins = [];
@@ -233,7 +253,7 @@ class CarromGame {
         this.collisionCount = 0;
 
         // Spawn Striker
-        this.striker = new RigidBody2D('STRIKER', this.strikerRadius, this.strikerMass, this.boardSize / 2, this.baselineY);
+        this.striker = new RigidBody2D('STRIKER', this.strikerRadius, this.strikerMass, this.boardSize / 2, this.getCurrentBaselineY());
         this.striker.linearDamping = this.frictionDamping;
         this.physicsWorld.addBody(this.striker);
 
@@ -274,7 +294,7 @@ class CarromGame {
                 const newX = this.baselineMinX + range * val;
                 
                 this.striker.position.x = newX;
-                this.striker.position.y = this.baselineY;
+                this.striker.position.y = this.getCurrentBaselineY();
                 this.striker.velocity.clear();
             }
         });
@@ -567,17 +587,22 @@ class CarromGame {
                 const strikeOffset = this.coinRadius + this.strikerRadius - 1;
                 const strikePos = coin.position.copy().add(dirToCoin.multiply(strikeOffset));
 
-                if (strikePos.y > this.baselineY) continue; 
+                const currentBaselineY = this.getCurrentBaselineY();
+                const isBlack = this.activePlayer === 'BLACK';
 
-                if (Math.abs(dirToCoin.y) < 0.1) continue; 
+                if (isBlack && strikePos.y < currentBaselineY) continue;
+                if (!isBlack && strikePos.y > currentBaselineY) continue;
 
-                const t = (this.baselineY - strikePos.y) / dirToCoin.y;
+                if (isBlack && dirToCoin.y < 0.05) continue;
+                if (!isBlack && dirToCoin.y > -0.05) continue;
+
+                const t = (currentBaselineY - strikePos.y) / dirToCoin.y;
                 if (t < 0) continue; 
 
                 const baselineX = strikePos.x + t * dirToCoin.x;
 
                 if (baselineX >= this.baselineMinX && baselineX <= this.baselineMaxX) {
-                    const pathStrikerToCoin = strikePos.copy().subtract(new Vector2D(baselineX, this.baselineY));
+                    const pathStrikerToCoin = strikePos.copy().subtract(new Vector2D(baselineX, currentBaselineY));
                     const distanceTotal = pathStrikerToCoin.length() + coinDist;
                     
                     const baseForceRequired = Math.sqrt(2 * distanceTotal * 1.15) * 6.5;
@@ -608,8 +633,8 @@ class CarromGame {
         if (!chosenCoin) {
             const firstActive = targetCoins[0];
             bestAimX = firstActive.position.x;
-            const targetVec = firstActive.position.copy().subtract(new Vector2D(bestAimX, this.baselineY));
-            bestImpulse = targetVec.normalize().multiply(500 * this.strikerMass);
+            const targetVec = firstActive.position.copy().subtract(new Vector2D(bestAimX, this.getCurrentBaselineY()));
+            bestImpulse = targetVec.normalize().multiply(1500 * this.strikerMass);
         }
 
         this.aiTargetX = Math.max(this.baselineMinX, Math.min(this.baselineMaxX, bestAimX));
@@ -628,11 +653,11 @@ class CarromGame {
             document.getElementById('strikerSlider').value = percent;
         }
 
-        if (this.aiThinkTimer > 0.8) {
-            this.aiDragVisualDist = Math.min(this.aiDragVisualDist + 180 * dt, this.maxDragDistance * 0.8);
+        if (this.aiThinkTimer > 0.15) {
+            this.aiDragVisualDist = Math.min(this.aiDragVisualDist + 600 * dt, this.maxDragDistance * 0.8);
         }
 
-        if (this.aiThinkTimer > 1.35) {
+        if (this.aiThinkTimer > 0.45) {
             this.striker.velocity.clear();
             this.striker.applyImpulse(this.aiShootImpulse);
 
@@ -766,7 +791,7 @@ class CarromGame {
 
     finalizeTurn(switchTurn) {
         this.striker.isPocketed = false;
-        this.striker.position.set(this.boardSize / 2, this.baselineY);
+        this.striker.position.set(this.boardSize / 2, this.getCurrentBaselineY());
         this.striker.velocity.clear();
 
         if (switchTurn) {
