@@ -21,8 +21,8 @@
         <div class="entry-logo-container">
             <div class="logo-coin logo-striker" title="Striker"></div>
             <div class="logo-coin logo-queen" title="Queen"></div>
-            <div class="logo-coin logo-white" title="White Piece"></div>
-            <div class="logo-coin logo-black" title="Black Piece"></div>
+            <div class="logo-coin logo-white selectable active" id="selectColorWhite" title="Play as White"></div>
+            <div class="logo-coin logo-black selectable" id="selectColorBlack" title="Play as Black"></div>
         </div>
 
         <!-- Entry Screen Match Settings Card -->
@@ -185,6 +185,15 @@
 
         </div>
 
+    </div>
+
+    <!-- Firebase-style Notification Toast -->
+    <div id="firebaseNotification" class="firebase-toast hidden">
+        <div class="toast-icon"></div>
+        <div class="toast-content">
+            <h4 id="toastTitle">Notification</h4>
+            <p id="toastMessage">Message</p>
+        </div>
     </div>
 
     <!-- Core Game Scripts -->

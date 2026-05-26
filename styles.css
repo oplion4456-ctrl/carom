@@ -837,3 +837,52 @@ canvas:active {
     .logo-striker { width: 65px; height: 65px; }
 }
 
+
+/* Firebase style notification */
+.firebase-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    z-index: 9999;
+    transform: translateX(120%);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: 250px;
+}
+.firebase-toast.show {
+    transform: translateX(0);
+}
+.toast-icon {
+    width: 24px;
+    height: 24px;
+    background: #FFCA28;
+    border-radius: 50%;
+    margin-right: 12px;
+}
+.toast-content h4 {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+    font-weight: 600;
+}
+.toast-content p {
+    margin: 4px 0 0;
+    color: #666;
+    font-size: 12px;
+}
+.logo-coin.selectable {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.logo-coin.selectable:hover {
+    transform: scale(1.15);
+}
+.logo-coin.selectable.active {
+    box-shadow: 0 0 15px 4px var(--neon-cyan);
+    transform: scale(1.2);
+}

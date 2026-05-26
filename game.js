@@ -24,6 +24,7 @@ class CarromGame {
 
         // Core states
         this.gameState = 'POSITIONING';
+        this.playerColor = 'WHITE';
         this.activePlayer = 'WHITE';
         this.opponentMode = 'LOCAL';
 
@@ -239,6 +240,18 @@ class CarromGame {
         });
     }
 
+    showNotification(title, msg) {
+        const toast = document.getElementById('firebaseNotification');
+        if (!toast) return;
+        document.getElementById('toastTitle').innerText = title;
+        document.getElementById('toastMessage').innerText = msg;
+        toast.classList.remove('hidden');
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3500);
+    }
+
     getCurrentBaselineY() {
         return this.activePlayer === 'BLACK' ? this.topBaselineY : this.baselineY;
     }
@@ -326,10 +339,25 @@ class CarromGame {
         const frictionFast = document.getElementById('entryFrictionFast');
         const scoringClassic = document.getElementById('entryScoringClassic');
         const scoringPoints = document.getElementById('entryScoringPoints');
+        const colorWhite = document.getElementById('selectColorWhite');
+        const colorBlack = document.getElementById('selectColorBlack');
         
         let selectedMode = 'LOCAL';
         let selectedFriction = 'FAST';
         let selectedScoring = 'CLASSIC';
+        let selectedColor = 'WHITE';
+
+        colorWhite.addEventListener('click', () => {
+            selectedColor = 'WHITE';
+            colorWhite.classList.add('active');
+            colorBlack.classList.remove('active');
+        });
+
+        colorBlack.addEventListener('click', () => {
+            selectedColor = 'BLACK';
+            colorBlack.classList.add('active');
+            colorWhite.classList.remove('active');
+        });
 
         scoringClassic.addEventListener('click', () => {
             selectedScoring = 'CLASSIC';
@@ -371,21 +399,24 @@ class CarromGame {
             // Apply settings to actual game state
             this.opponentMode = selectedMode;
             this.scoringMode = selectedScoring;
+            this.playerColor = selectedColor;
             document.getElementById('hudOpponentMode').innerText = selectedMode === 'LOCAL' ? '2-Player' : 'Championship AI';
             
             if (selectedMode === 'LOCAL') {
                 document.getElementById('blackPlayerName').innerText = 'Black Score';
             } else {
-                document.getElementById('blackPlayerName').innerText = 'Championship AI';
+                document.getElementById('blackPlayerName').innerText = selectedColor === 'WHITE' ? 'Championship AI (Black)' : 'You (Black)';
             }
 
             if (selectedFriction === 'FAST') {
-                this.frictionDamping = 0.75;
+                this.frictionDamping = 0.55; // Even faster glide!
                 document.getElementById('hudFrictionMode').innerText = 'Hyper Speed';
             } else {
                 this.frictionDamping = 1.15;
                 document.getElementById('hudFrictionMode').innerText = 'Heavy Board';
             }
+
+            this.showNotification('Match Ready!', `Playing as ${selectedColor} in ${selectedMode} mode.`);
 
             // Animate transition
             entryScreen.classList.add('fade-out');
@@ -423,7 +454,8 @@ class CarromGame {
         };
 
         const handleDown = (e) => {
-            if (this.opponentMode === 'AI' && this.activePlayer === 'BLACK') return;
+            if (e.type.startsWith('touch') && e.cancelable) e.preventDefault();
+            if (this.opponentMode === 'AI' && this.activePlayer !== this.playerColor) return;
             const coords = getCoordinates(e);
 
             if (this.gameState === 'POSITIONING') {
@@ -444,6 +476,7 @@ class CarromGame {
         };
 
         const handleMove = (e) => {
+            if (e.type.startsWith('touch') && e.cancelable) e.preventDefault();
             if (this.isAimDragging) {
                 const coords = getCoordinates(e);
                 this.dragCurrent.set(coords.x, coords.y);
@@ -583,6 +616,30 @@ class CarromGame {
     //      PROFESSIONAL COMPUTER AI ENGINE
     // ==========================================
 
+    isPathBlocked(startVec, endVec, radius, ignoreBodies) {
+        const pathVec = endVec.copy().subtract(startVec);
+        const pathLen = pathVec.length();
+        if (pathLen === 0) return false;
+        
+        const pathDir = pathVec.copy().normalize();
+        
+        for (const body of this.physicsWorld.bodies) {
+            if (body.isPocketed || ignoreBodies.includes(body)) continue;
+            
+            const toBody = body.position.copy().subtract(startVec);
+            const projectionLength = toBody.dot(pathDir);
+            
+            if (projectionLength < 0 || projectionLength > pathLen) continue;
+            
+            const closestPoint = startVec.copy().add(pathDir.copy().multiply(projectionLength));
+            const distanceToRay = body.position.copy().subtract(closestPoint).length();
+            
+            const clearanceNeeded = radius + body.radius + 1.5;
+            if (distanceToRay < clearanceNeeded) return true;
+        }
+        return false;
+    }
+
     triggerAiTurn() {
         this.gameState = 'AI_THINKING';
         this.aiThinkTimer = 0;
@@ -638,12 +695,19 @@ class CarromGame {
                 const baselineX = strikePos.x + t * dirToCoin.x;
 
                 if (baselineX >= this.baselineMinX && baselineX <= this.baselineMaxX) {
+                    const isCoinToPocketClear = !this.isPathBlocked(coin.position, pocket, this.coinRadius, [coin]);
+                    const isStrikerToCoinClear = !this.isPathBlocked(new Vector2D(baselineX, currentBaselineY), strikePos, this.strikerRadius, [coin]);
+
                     const pathStrikerToCoin = strikePos.copy().subtract(new Vector2D(baselineX, currentBaselineY));
                     const distanceTotal = pathStrikerToCoin.length() + coinDist;
-                    
+
+                    let score = -distanceTotal - (Math.abs(baselineX - this.boardSize / 2) * 0.1);
+                    if (isCoinToPocketClear && isStrikerToCoinClear) {
+                        score += 10000; // Heavily favor clear shots
+                    }
+
                     const baseForceRequired = Math.sqrt(2 * distanceTotal * 1.15) * 6.5;
                     const clampedForce = Math.min(Math.max(baseForceRequired, 280), 2500);
-
                     const errorAngle = (Math.random() - 0.5) * 0.025;
                     const finalShotVector = pathStrikerToCoin.normalize().multiply(clampedForce * this.strikerMass);
                     
@@ -654,7 +718,6 @@ class CarromGame {
                         finalShotVector.x * sinE + finalShotVector.y * cosE
                     );
 
-                    const score = 1000 - distanceTotal - (Math.abs(baselineX - this.boardSize / 2) * 0.2);
                     if (score > bestScore) {
                         bestScore = score;
                         chosenCoin = coin;
@@ -863,8 +926,11 @@ class CarromGame {
         const remainingCoins = this.coins.filter(c => !c.isPocketed && c.type !== 'QUEEN').length;
         if (remainingCoins === 0) {
             this.gameState = 'GAME_OVER';
+            this.showNotification('Game Over', 'All coins have been pocketed!');
         } else {
-            if (this.opponentMode === 'AI' && this.activePlayer === 'BLACK') {
+            if (this.opponentMode === 'AI' && this.activePlayer !== this.playerColor) {
+                this.gameState = 'AI_THINKING';
+                this.updateUI();
                 this.triggerAiTurn();
             } else {
                 this.gameState = 'POSITIONING';
@@ -887,7 +953,7 @@ class CarromGame {
         }
 
         document.getElementById('activePlayerDisplay').innerText = 
-            (this.opponentMode === 'AI' && this.activePlayer === 'BLACK') ? 'Championship AI' : `${this.activePlayer} Player`;
+            (this.opponentMode === 'AI' && this.activePlayer !== this.playerColor) ? 'Championship AI' : `You (${this.activePlayer})`;
         
         const turnDot = document.getElementById('turnIndicatorDot');
         if (this.activePlayer === 'WHITE') {
