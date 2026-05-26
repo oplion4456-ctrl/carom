@@ -24,7 +24,8 @@ class CarromGame {
 
         // Core states
         this.gameState = 'POSITIONING';
-        this.playerColor = 'WHITE';
+        this.playerColor = 'WHITE'; // Logical team (WHITE/BLACK)
+        this.playerSkin = 'WHITE'; // Visual color (WHITE/BLACK/GREY/RED)
         this.activePlayer = 'WHITE';
         this.opponentMode = 'LOCAL';
 
@@ -341,23 +342,30 @@ class CarromGame {
         const scoringPoints = document.getElementById('entryScoringPoints');
         const colorWhite = document.getElementById('selectColorWhite');
         const colorBlack = document.getElementById('selectColorBlack');
+        const colorGrey = document.getElementById('selectColorGrey');
+        const colorRed = document.getElementById('selectColorRed');
         
         let selectedMode = 'LOCAL';
         let selectedFriction = 'FAST';
         let selectedScoring = 'CLASSIC';
         let selectedColor = 'WHITE';
 
-        colorWhite.addEventListener('click', () => {
-            selectedColor = 'WHITE';
-            colorWhite.classList.add('active');
-            colorBlack.classList.remove('active');
-        });
-
-        colorBlack.addEventListener('click', () => {
-            selectedColor = 'BLACK';
-            colorBlack.classList.add('active');
+        const updateColorSelection = (color) => {
+            selectedColor = color;
             colorWhite.classList.remove('active');
-        });
+            colorBlack.classList.remove('active');
+            colorGrey.classList.remove('active');
+            colorRed.classList.remove('active');
+            if (color === 'WHITE') colorWhite.classList.add('active');
+            if (color === 'BLACK') colorBlack.classList.add('active');
+            if (color === 'GREY') colorGrey.classList.add('active');
+            if (color === 'RED') colorRed.classList.add('active');
+        };
+
+        colorWhite.addEventListener('click', () => updateColorSelection('WHITE'));
+        colorBlack.addEventListener('click', () => updateColorSelection('BLACK'));
+        colorGrey.addEventListener('click', () => updateColorSelection('GREY'));
+        colorRed.addEventListener('click', () => updateColorSelection('RED'));
 
         scoringClassic.addEventListener('click', () => {
             selectedScoring = 'CLASSIC';
@@ -399,13 +407,15 @@ class CarromGame {
             // Apply settings to actual game state
             this.opponentMode = selectedMode;
             this.scoringMode = selectedScoring;
-            this.playerColor = selectedColor;
+            this.playerSkin = selectedColor;
+            this.playerColor = selectedColor === 'BLACK' ? 'BLACK' : 'WHITE';
+
             document.getElementById('hudOpponentMode').innerText = selectedMode === 'LOCAL' ? '2-Player' : 'Championship AI';
             
             if (selectedMode === 'LOCAL') {
                 document.getElementById('blackPlayerName').innerText = 'Black Score';
             } else {
-                document.getElementById('blackPlayerName').innerText = selectedColor === 'WHITE' ? 'Championship AI (Black)' : 'You (Black)';
+                document.getElementById('blackPlayerName').innerText = this.playerColor === 'WHITE' ? 'Championship AI (Black)' : 'You (Black)';
             }
 
             if (selectedFriction === 'FAST') {
@@ -1158,11 +1168,25 @@ class CarromGame {
                 this.ctx.fillStyle = gradient;
                 this.ctx.strokeStyle = '#003314';
             } else if (body.type === 'WHITE_COIN') {
-                gradient.addColorStop(0, '#FFFFFF');
-                gradient.addColorStop(0.7, '#E0F7FA');
-                gradient.addColorStop(1, '#80DEEA');
-                this.ctx.fillStyle = gradient;
-                this.ctx.strokeStyle = '#4DD0E1';
+                if (this.playerSkin === 'GREY') {
+                    gradient.addColorStop(0, '#CFD8DC');
+                    gradient.addColorStop(0.65, '#90A4AE');
+                    gradient.addColorStop(1, '#455A64');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.strokeStyle = '#263238';
+                } else if (this.playerSkin === 'RED') {
+                    gradient.addColorStop(0, '#FF8A80');
+                    gradient.addColorStop(0.65, '#D50000');
+                    gradient.addColorStop(1, '#880000');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.strokeStyle = '#3E2723';
+                } else {
+                    gradient.addColorStop(0, '#FFFFFF');
+                    gradient.addColorStop(0.7, '#E0F7FA');
+                    gradient.addColorStop(1, '#80DEEA');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.strokeStyle = '#4DD0E1';
+                }
             } else if (body.type === 'BLACK_COIN') {
                 gradient.addColorStop(0, '#5D4037');
                 gradient.addColorStop(0.65, '#2D150F');
