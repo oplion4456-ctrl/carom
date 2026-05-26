@@ -28,6 +28,14 @@
         <!-- Entry Screen Match Settings Card -->
         <div class="entry-settings-panel">
             <div class="settings-group">
+                <span class="settings-label">Select Scoring Mode</span>
+                <div class="settings-buttons">
+                    <button class="settings-btn active" id="entryScoringClassic">Classic (9 Coins)</button>
+                    <button class="settings-btn" id="entryScoringPoints">Points Mode</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
                 <span class="settings-label">Select Opponent Mode</span>
                 <div class="settings-buttons">
                     <button class="settings-btn active" id="entryModeLocal">2-Player</button>
@@ -111,7 +119,7 @@
                             <div class="coin-icon white"></div>
                             <span class="player-name">White Score</span>
                         </div>
-                        <span class="score-val" id="whiteScoreVal">0</span>
+                        <span class="score-val" id="whiteScoreVal">0/9</span>
                     </div>
 
                     <div class="score-row" id="blackScoreRow">
@@ -119,7 +127,7 @@
                             <div class="coin-icon black"></div>
                             <span class="player-name" id="blackPlayerName">Black Score</span>
                         </div>
-                        <span class="score-val" id="blackScoreVal">0</span>
+                        <span class="score-val" id="blackScoreVal">0/9</span>
                     </div>
                 </div>
 

@@ -265,14 +265,29 @@ class CarromGame {
         this.coins.push(queen);
         this.physicsWorld.addBody(queen);
 
-        // Grid circle arrangement
-        const ringCount = 12;
-        const ringRadius = this.coinRadius * 2 + 1.5;
-        for (let i = 0; i < ringCount; i++) {
-            const angle = (i * 2 * Math.PI) / ringCount;
-            const cx = centerX + ringRadius * Math.cos(angle);
-            const cy = centerY + ringRadius * Math.sin(angle);
+        // Inner ring
+        const innerCount = 6;
+        const innerRadius = this.coinRadius * 2 + 1.5;
+        for (let i = 0; i < innerCount; i++) {
+            const angle = (i * 2 * Math.PI) / innerCount;
+            const cx = centerX + innerRadius * Math.cos(angle);
+            const cy = centerY + innerRadius * Math.sin(angle);
             const type = i % 2 === 0 ? 'WHITE_COIN' : 'BLACK_COIN';
+            
+            const coin = new RigidBody2D(type, this.coinRadius, this.coinMass, cx, cy);
+            coin.linearDamping = this.frictionDamping;
+            this.coins.push(coin);
+            this.physicsWorld.addBody(coin);
+        }
+
+        // Outer ring
+        const outerCount = 12;
+        const outerRadius = this.coinRadius * 4 + 3.0;
+        for (let i = 0; i < outerCount; i++) {
+            const angle = (i * 2 * Math.PI) / outerCount + Math.PI / outerCount;
+            const cx = centerX + outerRadius * Math.cos(angle);
+            const cy = centerY + outerRadius * Math.sin(angle);
+            const type = i % 2 !== 0 ? 'WHITE_COIN' : 'BLACK_COIN';
             
             const coin = new RigidBody2D(type, this.coinRadius, this.coinMass, cx, cy);
             coin.linearDamping = this.frictionDamping;
@@ -309,9 +324,24 @@ class CarromGame {
         const modeAi = document.getElementById('entryModeAi');
         const frictionHeavy = document.getElementById('entryFrictionHeavy');
         const frictionFast = document.getElementById('entryFrictionFast');
+        const scoringClassic = document.getElementById('entryScoringClassic');
+        const scoringPoints = document.getElementById('entryScoringPoints');
         
         let selectedMode = 'LOCAL';
         let selectedFriction = 'FAST';
+        let selectedScoring = 'CLASSIC';
+
+        scoringClassic.addEventListener('click', () => {
+            selectedScoring = 'CLASSIC';
+            scoringClassic.classList.add('active');
+            scoringPoints.classList.remove('active');
+        });
+
+        scoringPoints.addEventListener('click', () => {
+            selectedScoring = 'POINTS';
+            scoringPoints.classList.add('active');
+            scoringClassic.classList.remove('active');
+        });
 
         modeLocal.addEventListener('click', () => {
             selectedMode = 'LOCAL';
@@ -340,6 +370,7 @@ class CarromGame {
         enterArenaBtn.addEventListener('click', () => {
             // Apply settings to actual game state
             this.opponentMode = selectedMode;
+            this.scoringMode = selectedScoring;
             document.getElementById('hudOpponentMode').innerText = selectedMode === 'LOCAL' ? '2-Player' : 'Championship AI';
             
             if (selectedMode === 'LOCAL') {
@@ -560,11 +591,16 @@ class CarromGame {
 
         let targetType = 'BLACK_COIN';
         if (this.queenWaitingForCover) {
-            targetType = 'QUEEN';
+            targetType = 'BLACK_COIN'; 
+        } else if (!this.queenOwner && !this.queenPocketedThisTurn && !this.queenWaitingForCover) {
+            if (Math.random() < 0.3) targetType = 'QUEEN';
         }
-
+        
         let targetCoins = this.physicsWorld.bodies.filter(b => b.type === targetType && !b.isPocketed);
-        if (targetCoins.length === 0 && targetType === 'BLACK_COIN') {
+        if (targetCoins.length === 0) {
+            targetCoins = this.physicsWorld.bodies.filter(b => b.type === 'BLACK_COIN' && !b.isPocketed);
+        }
+        if (targetCoins.length === 0) {
             targetCoins = this.physicsWorld.bodies.filter(b => b.type === 'QUEEN' && !b.isPocketed);
         }
 
@@ -684,55 +720,64 @@ class CarromGame {
 
         const whitesPocketed = this.pocketedThisTurn.filter(t => t === 'WHITE_COIN').length;
         const blacksPocketed = this.pocketedThisTurn.filter(t => t === 'BLACK_COIN').length;
+        const ownCoinsPocketed = this.activePlayer === 'WHITE' ? whitesPocketed : blacksPocketed;
+        
+        if (this.scoringMode === 'CLASSIC') {
+            if (whitesPocketed > 0) this.whiteScore += whitesPocketed;
+            if (blacksPocketed > 0) this.blackScore += blacksPocketed;
 
-        if (this.queenWaitingForCover) {
-            const didCover = this.activePlayer === 'WHITE' ? whitesPocketed > 0 : blacksPocketed > 0;
-            if (didCover) {
-                this.queenWaitingForCover = false;
-                this.queenOwner = this.activePlayer;
-                
-                // Queen cover awards 30 points
-                if (this.activePlayer === 'WHITE') {
-                    this.whiteScore += this.queenValue;
+            if (this.queenWaitingForCover) {
+                if (ownCoinsPocketed > 0) {
+                    this.queenWaitingForCover = false;
+                    this.queenOwner = this.activePlayer;
+                    switchTurn = false;
                 } else {
-                    this.blackScore += this.queenValue;
+                    this.queenWaitingForCover = false;
+                    this.respawnQueen();
+                    switchTurn = true;
                 }
-                switchTurn = false;
-            } else {
-                this.queenWaitingForCover = false;
-                this.respawnQueen();
-                const scoredOwn = this.activePlayer === 'WHITE' ? whitesPocketed > 0 : blacksPocketed > 0;
-                switchTurn = !scoredOwn;
-            }
-        } else if (this.queenPocketedThisTurn) {
-            this.queenWaitingForCover = true;
-            const hasImmediateCover = this.activePlayer === 'WHITE' ? whitesPocketed > 0 : blacksPocketed > 0;
-            if (hasImmediateCover) {
-                this.queenWaitingForCover = false;
-                this.queenOwner = this.activePlayer;
-                
-                // Queen scored and immediately covered
-                if (this.activePlayer === 'WHITE') {
-                    this.whiteScore += this.queenValue;
+            } else if (this.queenPocketedThisTurn) {
+                this.queenWaitingForCover = true;
+                if (ownCoinsPocketed > 0) {
+                    this.queenWaitingForCover = false;
+                    this.queenOwner = this.activePlayer;
+                    switchTurn = false;
                 } else {
-                    this.blackScore += this.queenValue;
+                    switchTurn = false; 
                 }
-                switchTurn = false;
             } else {
-                switchTurn = false; 
+                if (ownCoinsPocketed > 0) switchTurn = false;
             }
         } else {
-            // Standard point assignments: White = 10 Points, Black = 5 Points
-            if (this.activePlayer === 'WHITE') {
-                if (whitesPocketed > 0) {
-                    this.whiteScore += whitesPocketed * this.whiteCoinValue;
+            // Points Mode
+            if (whitesPocketed > 0) this.whiteScore += whitesPocketed * this.whiteCoinValue;
+            if (blacksPocketed > 0) this.blackScore += blacksPocketed * this.blackCoinValue;
+
+            if (this.queenWaitingForCover) {
+                if (ownCoinsPocketed > 0) {
+                    this.queenWaitingForCover = false;
+                    this.queenOwner = this.activePlayer;
+                    if (this.activePlayer === 'WHITE') this.whiteScore += this.queenValue;
+                    else this.blackScore += this.queenValue;
+                    switchTurn = false;
+                } else {
+                    this.queenWaitingForCover = false;
+                    this.respawnQueen();
+                    switchTurn = !ownCoinsPocketed;
+                }
+            } else if (this.queenPocketedThisTurn) {
+                this.queenWaitingForCover = true;
+                if (ownCoinsPocketed > 0) {
+                    this.queenWaitingForCover = false;
+                    this.queenOwner = this.activePlayer;
+                    if (this.activePlayer === 'WHITE') this.whiteScore += this.queenValue;
+                    else this.blackScore += this.queenValue;
+                    switchTurn = false;
+                } else {
                     switchTurn = false;
                 }
             } else {
-                if (blacksPocketed > 0) {
-                    this.blackScore += blacksPocketed * this.blackCoinValue;
-                    switchTurn = false;
-                }
+                if (ownCoinsPocketed > 0) switchTurn = false;
             }
         }
 
@@ -740,31 +785,48 @@ class CarromGame {
     }
 
     handleFoulStrikerSunk() {
-        // Penalty: White costs 10 pts, Black costs 5 pts
-        if (this.activePlayer === 'WHITE') {
-            if (this.whiteScore >= this.whiteCoinValue) {
-                this.whiteScore -= this.whiteCoinValue;
+        if (this.scoringMode === 'CLASSIC') {
+            if (this.activePlayer === 'WHITE' && this.whiteScore > 0) {
+                this.whiteScore--;
+                this.respawnCoin('WHITE_COIN');
+            } else if (this.activePlayer === 'BLACK' && this.blackScore > 0) {
+                this.blackScore--;
+                this.respawnCoin('BLACK_COIN');
             }
-            this.respawnCoin('WHITE_COIN');
             this.floatingTexts.push({
                 x: this.striker.position.x,
                 y: this.striker.position.y - 12,
-                text: `-${this.whiteCoinValue} Foul`,
+                text: `-1 Coin Foul`,
                 color: '#FF1744',
                 opacity: 1.0
             });
         } else {
-            if (this.blackScore >= this.blackCoinValue) {
-                this.blackScore -= this.blackCoinValue;
+            // Penalty: White costs 10 pts, Black costs 5 pts
+            if (this.activePlayer === 'WHITE') {
+                if (this.whiteScore >= this.whiteCoinValue) {
+                    this.whiteScore -= this.whiteCoinValue;
+                }
+                this.respawnCoin('WHITE_COIN');
+                this.floatingTexts.push({
+                    x: this.striker.position.x,
+                    y: this.striker.position.y - 12,
+                    text: `-${this.whiteCoinValue} Foul`,
+                    color: '#FF1744',
+                    opacity: 1.0
+                });
+            } else {
+                if (this.blackScore >= this.blackCoinValue) {
+                    this.blackScore -= this.blackCoinValue;
+                }
+                this.respawnCoin('BLACK_COIN');
+                this.floatingTexts.push({
+                    x: this.striker.position.x,
+                    y: this.striker.position.y - 12,
+                    text: `-${this.blackCoinValue} Foul`,
+                    color: '#FF1744',
+                    opacity: 1.0
+                });
             }
-            this.respawnCoin('BLACK_COIN');
-            this.floatingTexts.push({
-                x: this.striker.position.x,
-                y: this.striker.position.y - 12,
-                text: `-${this.blackCoinValue} Foul`,
-                color: '#FF1744',
-                opacity: 1.0
-            });
         }
     }
 
@@ -842,8 +904,13 @@ class CarromGame {
             document.getElementById('activePlayerDisplay').style.color = 'var(--gold)';
         }
 
-        document.getElementById('whiteScoreVal').innerText = this.whiteScore;
-        document.getElementById('blackScoreVal').innerText = this.blackScore;
+        if (this.scoringMode === 'CLASSIC') {
+            document.getElementById('whiteScoreVal').innerText = `${this.whiteScore}/9`;
+            document.getElementById('blackScoreVal').innerText = `${this.blackScore}/9`;
+        } else {
+            document.getElementById('whiteScoreVal').innerText = this.whiteScore;
+            document.getElementById('blackScoreVal').innerText = this.blackScore;
+        }
 
         const statusBox = document.getElementById('queenStatusBox');
         if (this.queenWaitingForCover) {
