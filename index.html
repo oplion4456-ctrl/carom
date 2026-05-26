@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiGravity 2D Carrom - Championship Hardwood Arena</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Breathtaking App Entry Designed Face / Welcome Landing Screen -->
+    <div class="entry-screen" id="entryScreen">
+        <div class="entry-glow-ring"></div>
+        
+        <div class="entry-header">
+            <h1 class="entry-title">ANTIGRAVITY CARROM</h1>
+            <p class="entry-subtitle">Championship Hardwood Simulator & Professional AI Arena</p>
+        </div>
+
+        <!-- 3D-styled pulsing coin layout decoration -->
+        <div class="entry-logo-container">
+            <div class="logo-coin logo-striker" title="Striker"></div>
+            <div class="logo-coin logo-queen" title="Queen"></div>
+            <div class="logo-coin logo-white" title="White Piece"></div>
+            <div class="logo-coin logo-black" title="Black Piece"></div>
+        </div>
+
+        <!-- Entry Screen Match Settings Card -->
+        <div class="entry-settings-panel">
+            <div class="settings-group">
+                <span class="settings-label">Select Opponent Mode</span>
+                <div class="settings-buttons">
+                    <button class="settings-btn active" id="entryModeLocal">2-Player</button>
+                    <button class="settings-btn" id="entryModeAi">Championship AI</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <span class="settings-label">Friction Speed Tuning</span>
+                <div class="settings-buttons">
+                    <button class="settings-btn" id="entryFrictionHeavy">Heavy Board (Normal)</button>
+                    <button class="settings-btn active" id="entryFrictionFast">Fast Board (Super Speed)</button>
+                </div>
+            </div>
+
+            <button class="play-btn" id="enterArenaBtn">
+                <span>ENTER ARENA</span>
+                <div class="play-btn-glow"></div>
+            </button>
+        </div>
+
+        <div class="entry-footer">
+            <span>Powered by AntiGravity Physics Engine • Calibrated Wood Dynamics</span>
+        </div>
+    </div>
+
+    <!-- Core Game Interface (Fades in smoothly on Enter Arena) -->
+    <div class="game-container hidden" id="gameArenaContainer">
+        
+        <header>
+            <h1>AntiGravity Carrom</h1>
+            <p>Wood Slide Physics Simulator & Professional AI Opponent</p>
+        </header>
+
+        <div class="dashboard">
+
+            <!-- Playable Board Column -->
+            <div class="board-column">
+                <div class="board-wrapper">
+                    <canvas id="carromCanvas" width="600" height="600"></canvas>
+                </div>
+                
+                <!-- Baseline Slider Control -->
+                <div class="slider-panel">
+                    <div class="slider-header">
+                        <span class="slider-title">Position Striker</span>
+                        <span class="slider-hint">Drag horizontally to align. Drag striker on board to aim & shoot.</span>
+                    </div>
+                    <input type="range" id="strikerSlider" min="0" max="100" value="50" class="premium-slider">
+                </div>
+            </div>
+
+            <!-- Scoreboard & Controls Panel -->
+            <div class="panel">
+                
+                <div class="state-badge-container">
+                    <div class="state-badge" id="gameStateBadge">Positioning</div>
+                    <div class="turn-dot" id="turnIndicatorDot"></div>
+                </div>
+
+                <div class="turn-indicator">
+                    <span class="turn-title">Current Turn</span>
+                    <span class="turn-player" id="activePlayerDisplay">White Player</span>
+                </div>
+
+                <!-- Arena Settings Info -->
+                <div class="arena-info-box">
+                    <div class="arena-info-row">
+                        <span class="info-label">Mode:</span>
+                        <span class="info-value" id="hudOpponentMode">2-Player</span>
+                    </div>
+                    <div class="arena-info-row">
+                        <span class="info-label">Board Speed:</span>
+                        <span class="info-value text-speed" id="hudFrictionMode">Hyper Speed</span>
+                    </div>
+                </div>
+
+                <div class="scores">
+                    <div class="score-row active-player" id="whiteScoreRow">
+                        <div class="player-info">
+                            <div class="coin-icon white"></div>
+                            <span class="player-name">White Score</span>
+                        </div>
+                        <span class="score-val" id="whiteScoreVal">0</span>
+                    </div>
+
+                    <div class="score-row" id="blackScoreRow">
+                        <div class="player-info">
+                            <div class="coin-icon black"></div>
+                            <span class="player-name" id="blackPlayerName">Black Score</span>
+                        </div>
+                        <span class="score-val" id="blackScoreVal">0</span>
+                    </div>
+                </div>
+
+                <!-- Queen Cover Indicator -->
+                <div class="queen-status" id="queenStatusBox" style="display: none;">
+                    <div class="queen-dot"></div>
+                    <span id="queenStatusText">Queen Sunk! Score a coin to cover.</span>
+                </div>
+
+                <!-- Action Button -->
+                <button class="btn" id="restartBtn">Reset Board</button>
+
+            </div>
+
+            <!-- Physics Monitor HUD Overlay -->
+            <div class="panel monitor-panel">
+                <div class="monitor-header">
+                    <div class="pulse-dot"></div>
+                    <span class="monitor-title">Telemetry & Physics HUD</span>
+                </div>
+                
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Active Bodies</span>
+                        <span class="telemetry-value" id="hudActiveBodies">14</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Total Kinetic Energy</span>
+                        <span class="telemetry-value" id="hudKineticEnergy">0.00 J</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Striker Velocity</span>
+                        <span class="telemetry-value" id="hudStrikerVel">0.0 px/s</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Collision Count</span>
+                        <span class="telemetry-value" id="hudCollisions">0</span>
+                    </div>
+                </div>
+
+                <div class="vector-visualizer">
+                    <span class="vector-title">Dynamic Vector Trajectory Path</span>
+                    <div class="vector-status">
+                        <span class="vector-status-label">Trajectory:</span>
+                        <span class="vector-status-value" id="hudTrajectoryStatus">Ready</span>
+                    </div>
+                </div>
+
+                <div class="guidance">
+                    <strong>Tactical HUD Tips:</strong><br>
+                    - Speed tuning changes coin slide distance.<br>
+                    - Championship AI calculates pocket path lines and sets correct speeds.
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Core Game Scripts -->
+    <script src="physics.js"></script>
+    <script src="audio.js"></script>
+    <script src="game.js"></script>
+
+</body>
+</html>
